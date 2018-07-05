@@ -6,6 +6,8 @@ class AssignMeshPair(bpy.types.Operator):
     bl_label = "Assign Pair";
     bl_description="Map two meshes are a pair to create linked landmarks between them";
     bl_options = {'REGISTER', 'UNDO'};
+    mesh_1_name = bpy.props.StringProperty(name="M 1", description="Mesh 1 to use", default="~~~");
+    mesh_2_name = bpy.props.StringProperty(name="M 2", description="Mesh 2 to use", default="~~~");
         
     def assignPairsMAndN(self, context, M, N):      
         M.is_landmarked_mesh = N.is_landmarked_mesh = True;  
@@ -42,12 +44,21 @@ class AssignMeshPair(bpy.types.Operator):
         return M, N;
     
     def execute(self, context):        
-        selections = [o for o in context.selected_objects];
-        
-        if(len(selections) == 2):            
-            self.useSelectionsForMN(context, selections);
+        if(self.mesh_1_name != "~~~" and self.mesh_2_name != "~~~"):
+            m1, m2 = None, None;
+            try:
+                m1 = context.scene.objects[self.mesh_1_name];
+                m2 = context.scene.objects[self.mesh_2_name];
+                self.useSelectionsForMN(context, [m1, m2]);
+            except KeyError:
+                pass;
         else:
-            message = "Please select a combination for surfaces M and N";
-            bpy.ops.genericlandmarks.messagebox('INVOKE_DEFAULT',messagetype='ERROR',message=message,messagelinesize=60);
+            selections = [o for o in context.selected_objects];
+            
+            if(len(selections) == 2):            
+                self.useSelectionsForMN(context, selections);
+            else:
+                message = "Please select a combination for surfaces M and N";
+                bpy.ops.genericlandmarks.messagebox('INVOKE_DEFAULT',messagetype='ERROR',message=message,messagelinesize=60);
         
         return {'FINISHED'};
