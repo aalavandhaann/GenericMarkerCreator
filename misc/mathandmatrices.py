@@ -145,6 +145,10 @@ def getDuplicatedObject(context, meshobject, meshname="Duplicated", wire = False
 
         return duplicated;
 
+def setMeshVPOS(mesh, vpos):
+    for index, vect in enumerate(vpos):
+        mesh.data.vertices[index].co = vect;
+
 def getMeshVPos(mesh, extra_points=[]):
     vpos = [];
     for v in mesh.data.vertices:
