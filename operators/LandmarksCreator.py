@@ -57,7 +57,7 @@ class CreateLandmarks(bpy.types.Operator):
             bmarker = None;
             
             try:
-                bmarker = bpy.data.objects[mesh.name + "_marker_"+str(marker.originalid)];            
+                bmarker = bpy.data.objects[mesh.name + "_marker_"+str(marker.id)];            
                 bmarker.parent = None;
                 bmarker.location = location;        
             except KeyError:
