@@ -35,6 +35,10 @@ class LandmarksPanel(bpy.types.Panel):
                 row.prop(context.active_object, 'hide_landmarks');
                 
                 row = box.row();
+                op = row.operator(CreateLandmarks.bl_idname, text="Update Positions");
+                op.updatepositions = True;
+                
+                row = box.row();
                 row.operator(ChangeLandmarks.bl_idname);
                 
                 row = box.row();
