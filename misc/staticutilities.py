@@ -390,27 +390,26 @@ def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sor
         
         print('FINISHED SAVING THE FILE');
         
-def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors"):
-        
-        c = error_values.T;
-        
-        if(not A and not B):
-            B = np.amax(c) * 0.1;
-            A = np.amin(c);
-        
+def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors"):        
+        c = error_values.T;       
         norm = clrs.Normalize(vmin=A, vmax=B);
-#         cmap = cm.jet;
-        cmap = get_cmap("jet");
-#         cmap = clrs.LinearSegmentedColormap.from_list(name="custom", colors=all_colors);
-        m = cm.ScalarMappable(norm=norm, cmap=cmap);
-        final_colors = m.to_rgba(c);
+        
+        cmap = get_cmap('jet');
+        c = c / np.amax(c);
+        final_colors = cmap(c)[:, 0:3]
+        
         final_weights = norm(c);
+        
+        print('GIVEN ARRAY:%s AND FINAL COLORS:%s '%(c.shape, final_colors.shape));
         
         colors = {};
         L_error_color_values = {};
         
         for v in error_mesh.data.vertices:            
-            (r,g,b,a) = final_colors[v.index];
+            try:
+                (r,g,b,a) = final_colors[v.index];
+            except ValueError:
+                (r,g,b) = final_colors[v.index];            
             color = Color((r,g,b));
             L_error_color_values[v.index] = color;
             colors[v.index] = final_weights[v.index];
@@ -439,11 +438,32 @@ def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B
         bm.free();
         
         try:
-#             material = bpy.data.materials[error_mesh.name+'_'+v_group_name+'ErrorsMaterial'];
             material = bpy.data.materials[error_mesh.name+'_'+v_group_name];
-        except:
-#             material = bpy.data.materials.new(error_mesh.name+'_'+v_group_name+'ErrorsMaterial');
+        except KeyError:
             material = bpy.data.materials.new(error_mesh.name+'_'+v_group_name);
+        
+        try:
+            error_mesh.data.materials[error_mesh.name+'_'+v_group_name];
+        except KeyError:
             error_mesh.data.materials.append(material);
-            
-        material.use_vertex_color_paint = True;        
+#         print('MATERIALS ::: ', error_mesh.data.materials);
+        material.use_vertex_color_paint = True;   
+
+def exportMeshColors(context, mesh, vertex_colors_name, base_location, exportname,*, retain_location=False):
+    filepath = bpy.path.abspath(base_location + "/"+exportname+".ply");                 
+    bpy.ops.object.select_all(action="DESELECT");
+    
+    mesh.data.vertex_colors.active = mesh.data.vertex_colors[vertex_colors_name];
+    context.scene.objects.active = mesh;
+    mesh.select = True;    
+    o_location = mesh.location.copy();
+    if(not retain_location):
+        mesh.location = (0,0,0);    
+    bpy.ops.export_mesh.ply(filepath=filepath, check_existing=False, axis_forward='-Z', axis_up='Y', filter_glob="*.ply", use_mesh_modifiers=True, use_normals=True, use_uv_coords=True, use_colors=True, global_scale=1.0);
+    mesh.location = o_location;
+    bpy.ops.object.select_all(action="DESELECT");
+
+
+
+
+     
