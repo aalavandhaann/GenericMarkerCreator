@@ -1,6 +1,37 @@
-import bpy, mathutils;
-from mathutils import Vector;
+import bpy, mathutils, os;
+import numpy as np;
+
+import platform;
+
+from mathutils import Vector, Color;
+from scipy.interpolate.interpolate_wrapper import logarithmic
 from GenericMarkerCreator.misc.meshmathutils import getKDTree;
+from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptable;
+
+print('HELPERS LOOKING INTO THE PLATFORM ::: ', platform.system());
+
+if(platform.system() != 'Windows'):
+    import matplotlib;
+    from matplotlib import rcParams;
+    try:
+        from matplotlib import pyplot as plt;
+    except ImportError:
+        pass;
+    from matplotlib.figure import Figure;
+    from mpl_toolkits.mplot3d import Axes3D;
+    from mpl_toolkits.mplot3d import proj3d;
+    from matplotlib.patches import FancyArrowPatch;
+    from matplotlib.font_manager import FontProperties;
+    
+    import matplotlib.cm as cm;
+    import matplotlib.mlab as mlab;
+    from matplotlib.cm import get_cmap;
+    import matplotlib.colors as clrs;
+else:
+    print('WINDOWS SYSTEM CANNOT BE SUPPORTED. SORRY!');
+
+
+
 
 def getConstraintsKD(context, mesh):
     coords = [];
@@ -196,3 +227,223 @@ def getMarkerOwner(markerobj):
         belongsto = bpy.data.objects[markerobj.name.split("_marker_")[0]];
         return belongsto, False, False;    
     return None, False, False;
+
+
+def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sorting = True, xlabel="Vertex", ylabel="Error", graph_title="Laplacian errors", graph_name="LaplacianErrors_", logarithmic=False, plot_sum=False, plot_average=False, show_title = True, elaborate_title = False):
+        colors = [(1,0,0), (0,1,0), (0,0,1), (1,0,1), (1,1,0), (0,1,1), (1,0.5,0.5), (0.5,1,0.5), (0.5,0.5,1.0)];
+        minimum = 99999999.0;
+        maximum = -99999999.0;
+        max_length = -99999999;
+        max_distance = [];
+        my_dpi = 200;
+        all_np_distances = [];
+        
+        distance_sums = {};
+        
+        title_suffixes = "";
+        title_prefixes = reference.name + " and "+meshobject.name;
+                
+        for index, distance in enumerate(distances):
+            minimum = min(minimum, min(distance));
+            maximum = max(maximum, max(distance));
+            distance_sums[algo_names[index]] = sum(distance);
+            max_distance.append(max(distance));
+            max_length = max(max_length, len(distance));            
+            all_np_distances.append(np.array(distance));
+        
+        minimum = minimum - (maximum * 0.1);
+        
+        x_labels = np.array([i for i in range(max_length)]);
+        
+        if(platform.system() != 'Windows'):        
+            try:
+                fig = plt.figure(figsize=(1920/my_dpi, 1200/my_dpi), dpi=my_dpi);
+            except:            
+                fig = Figure(figsize=(1920/my_dpi, 1200/my_dpi), dpi=my_dpi);
+        
+        f_size = 20;
+        
+        shown_graph_title = graph_title;
+        if(elaborate_title):
+            shown_graph_title = graph_title+ ' '+title_prefixes;
+        
+        if(not show_title):
+            shown_graph_title = "";
+        
+        if(platform.system() != 'Windows'):        
+#             ax = getAxisObject(fig, minimum, maximum, usegrid=True, xlabel= xlabel, ylabel = ylabel, logarithmic = logarithmic, fontsize = f_size);#fig.add_subplot(111);
+#             ax.set_title(shown_graph_title, fontsize=f_size);
+            ax = getAxisObject(fig, minimum, maximum, usegrid=True, xlabel= xlabel, ylabel = ylabel, logarithmic = logarithmic);
+            ax.set_title(shown_graph_title);
+            ax.set_title('');
+        
+        fulltitle = title_prefixes+"_" +title_suffixes;
+        
+        path = bpy.path.abspath(context.scene.metricsexportlocation)+reference.name+"_"+meshobject.name;        
+        path = bpy.path.abspath(path);
+        
+        if not os.path.isdir(path):
+            os.makedirs(path);        
+        
+        colors = 'b,g,r,cyan,yellow,orange,magenta'.split(",");
+        linestyles = '--,:,-,-.'.split(",");
+        matlab_contents = [];
+        matlab_contents.append("h = figure('Position', [0 0 1100 600]);");
+        matlab_variables = []; 
+        
+        for index, algoname in enumerate(algo_names):            
+            color = colors[index];
+            distances = all_np_distances[index];
+            
+            if(sorting):
+                distances.sort();
+
+            if(index != 0):
+                title_suffixes += " vs "+algoname;
+            else:
+                title_suffixes = algoname;
+            
+            if(platform.system() != 'Windows'):            
+                ax.plot(x_labels,distances, '-', label=algoname, markersize=0.5, color=color, alpha=0.9);
+                
+            np.savetxt(path+"/"+graph_name+".csv", distances, delimiter=',');
+            
+            matlab_variable = "x"+str(index)+" = ["+",".join([str(v) for v in all_np_distances[index]])+"];";
+            matlab_variables.append(matlab_variable)
+            matlab_contents.append(matlab_variable);
+        
+        for index, mvariable in enumerate(matlab_variables):
+            variable_name = 'x'+str(index);
+            linestyle = linestyles[index % len(linestyles)];
+            linecolor = colors[index];
+            if(index == len(matlab_variables)-1):
+                linestyle = '-';
+                linecolor = 'r';
+                
+            plot_statement = "plot(sort("+variable_name+"),'-"+linecolor+"', 'LineWidth', 1, 'LineStyle','"+linestyle+"');";
+            matlab_contents.append(plot_statement);
+            matlab_contents.append("hold all;");
+        
+        
+        matlab_contents.append("xlabel('"+xlabel+"');");
+        matlab_contents.append("ylabel('"+ylabel+"');");
+        matlab_contents.append("title('Corr-"+reference.name +" - "+meshobject.name +" - Correspondences');");
+        matlab_contents.append("legend("+",".join(["'"+a+"'" for a in algo_names])+");");
+        matlab_contents.append("legend('Location','northwest');");
+        
+        if(platform.system() != 'Windows'):        
+            handles, labels = ax.get_legend_handles_labels();
+            ax.legend(handles, labels,fancybox=True,shadow=False,prop={'size':f_size-7}, loc='upper left');
+        
+        distance_errors_txt = "";
+        for key in distance_sums:
+            distance_errors_txt += str(key) + ","+str(distance_sums[key])+"\n";
+        
+        clean_file_name = "-".join(fulltitle.split(" "));
+        
+        fp = open(path+"/"+graph_name+clean_file_name+".csv", 'w', encoding='utf-8');
+        fp.write(distance_errors_txt);
+        fp.close();
+        
+        
+        matlab_contents.append("grid on");
+        matlab_contents.append("p = mfilename('fullpath');");
+        matlab_contents.append("try");
+        matlab_contents.append("addpath('matlab2tikz/src/');");
+        matlab_contents.append("matlab2tikz(strcat(p,'.tex'),'width', '\\fwidth');");
+        matlab_contents.append("catch exception");
+        matlab_contents.append("fprintf('If you are planning to use this graph on latex then visit https://tomlankhorst.nl/matlab-to-latex-with-matlab2tikz/. It is really useful, Trust me!');");        
+        matlab_contents.append("end");
+        
+        matlab_contents.append("try");
+        matlab_contents.append("saveas(h,strcat(p,'.pdf'))");
+        matlab_contents.append("saveas(h,strcat(p,'.jpg'))");
+        matlab_contents.append("saveas(h,strcat(p,'.png'))");
+        matlab_contents.append("catch exception");
+        matlab_contents.append("fprintf('[WARNING] Could not save Results');");
+        matlab_contents.append("end");
+        
+        
+        if(clean_file_name.endswith("_")):
+            clean_file_name = clean_file_name[:-1];
+        
+#         matlab_file = open(path+"/matgraph"+reference.name.replace("-","_")+"_"+meshobject.name.replace("-","_")+".m", "w");
+        matlab_file = open(path+"/"+graph_name+"_".join(clean_file_name.split("-"))+".m", "w");
+        
+        matlab_file.write("\n".join(matlab_contents));
+        matlab_file.close();
+        
+        print('PROCEED TO SAVE THE FILE ::: AT PATH :: ', path);
+        if(platform.system() != 'Windows'):
+            try:
+                plt.tight_layout();
+                plt.savefig(path+"/"+graph_name+clean_file_name+".pdf", transparent=False, bbox_inches='tight');
+                plt.savefig(path+"/"+graph_name+clean_file_name+".png", transparent=False, bbox_inches='tight');
+                plt.savefig(path+"/"+graph_name+clean_file_name+".svg", transparent=False, bbox_inches='tight');
+                print('SAVING FILES USING DEFAULT PLOT MECHANISM');
+            except NameError:        
+                print('SAVED FILES USING CANVAS PRINT FIGURE MECHANISM-2');
+                canvas = FigureCanvas(fig);
+                canvas.print_figure(path+"/"+graph_name+clean_file_name+".pdf", transparent=False, bbox_inches='tight');
+                canvas.print_figure(path+"/"+graph_name+clean_file_name+".png", transparent=False, bbox_inches='tight');
+                canvas.print_figure(path+"/"+graph_name+clean_file_name+".svg", transparent=False, bbox_inches='tight');
+        
+        print('FINISHED SAVING THE FILE');
+        
+def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors"):
+        
+        c = error_values.T;
+        
+        if(not A and not B):
+            B = np.amax(c) * 0.1;
+            A = np.amin(c);
+        
+        norm = clrs.Normalize(vmin=A, vmax=B);
+#         cmap = cm.jet;
+        cmap = get_cmap("jet");
+#         cmap = clrs.LinearSegmentedColormap.from_list(name="custom", colors=all_colors);
+        m = cm.ScalarMappable(norm=norm, cmap=cmap);
+        final_colors = m.to_rgba(c);
+        final_weights = norm(c);
+        
+        colors = {};
+        L_error_color_values = {};
+        
+        for v in error_mesh.data.vertices:            
+            (r,g,b,a) = final_colors[v.index];
+            color = Color((r,g,b));
+            L_error_color_values[v.index] = color;
+            colors[v.index] = final_weights[v.index];
+        
+        if(None == error_mesh.vertex_groups.get(v_group_name)):
+            error_mesh.vertex_groups.new(name=v_group_name);
+        
+        if(None == error_mesh.data.vertex_colors.get(v_group_name)):
+            error_mesh.data.vertex_colors.new(v_group_name);
+            
+        group_ind = error_mesh.vertex_groups[v_group_name].index;
+        lap_error_colors = error_mesh.data.vertex_colors[v_group_name];
+        
+        bm = getBMMesh(context, error_mesh, False);
+        ensurelookuptable(bm);
+        
+        for v in error_mesh.data.vertices:
+            n = v.index;
+            error_mesh.vertex_groups[group_ind].add([n], colors[v.index], 'REPLACE');
+            
+            b_vert = bm.verts[v.index];
+            
+            for l in b_vert.link_loops:
+                lap_error_colors.data[l.index].color = L_error_color_values[v.index];
+            
+        bm.free();
+        
+        try:
+#             material = bpy.data.materials[error_mesh.name+'_'+v_group_name+'ErrorsMaterial'];
+            material = bpy.data.materials[error_mesh.name+'_'+v_group_name];
+        except:
+#             material = bpy.data.materials.new(error_mesh.name+'_'+v_group_name+'ErrorsMaterial');
+            material = bpy.data.materials.new(error_mesh.name+'_'+v_group_name);
+            error_mesh.data.materials.append(material);
+            
+        material.use_vertex_color_paint = True;        
