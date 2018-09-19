@@ -95,7 +95,7 @@ class LiveLandmarksCreator(bpy.types.Operator):
                     b = vertices[loops[face.loop_indices[1]].vertex_index];
                     c = vertices[loops[face.loop_indices[2]].vertex_index];
                     
-                    u,v,w,ratio,isinside = getBarycentricCoordinate(hitpoint, a.co, b.co, c.co);
+                    u,v,w,ratio,isinside = getBarycentricCoordinate(hitpoint, a.co, b.co, c.co, snapping=the_mesh.snap_landmarks);
                     finalPoint = getCartesianFromBarycentre(Vector((u,v,w)), a.co, b.co, c.co);
                     
                     if(isinside):
@@ -117,7 +117,7 @@ class LiveLandmarksCreator(bpy.types.Operator):
                                 a = vertices[loops[face.loop_indices[0]].vertex_index];
                                 b = vertices[loops[face.loop_indices[1]].vertex_index];
                                 c = vertices[loops[face.loop_indices[2]].vertex_index];
-                                u,v,w,ratio,isinside = getBarycentricCoordinate(co, a.co, b.co, c.co);
+                                u,v,w,ratio,isinside = getBarycentricCoordinate(co, a.co, b.co, c.co, snapping=the_mesh.snap_landmarks);
                                 addConstraint(context, the_mesh, [u,v,w], [a.index, b.index, c.index], center);
                                 print('ADD MIRROR MARKER AT ', center, u, v, w);
                                 print('IT HAS A NEAREST FACE : ', index, ' AT A DISTANCE ::: ', distance);
@@ -151,7 +151,7 @@ class LiveLandmarksCreator(bpy.types.Operator):
                     b = vertices[loops[face.loop_indices[1]].vertex_index];
                     c = vertices[loops[face.loop_indices[2]].vertex_index];
                     area, area2 = getTriangleArea(a.co, b.co, c.co);
-                    u,v,w,ratio,isinside = getBarycentricCoordinate(hitpoint, a.co, b.co, c.co, epsilon=area * 0.1);
+                    u,v,w,ratio,isinside = getBarycentricCoordinate(hitpoint, a.co, b.co, c.co, epsilon=area * 0.1, snapping=the_mesh.snap_landmarks);
                         
                     newco = getCartesianFromBarycentre(Vector((u,v,w)), a.co, b.co, c.co);
                     context.area.header_text_set("Barycentric Values: %.8f %.8f %.8f %.8f" % tuple((u,v,w,(u+v+w))));

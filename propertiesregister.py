@@ -89,7 +89,10 @@ class GenericLandmark(bpy.types.PropertyGroup):
     
         
 def register():
-    bpy.utils.register_class(GenericLandmark);    
+    bpy.utils.register_class(GenericLandmark);
+    
+    bpy.types.Object.snap_landmarks = bpy.props.BoolProperty(name="Snap Landmarks", description="Flag to enable/disable snapping", default=False);
+        
     bpy.types.Object.is_landmarked_mesh = bpy.props.BoolProperty(name="Is Landmarked Mesh", description="Flag to identify meshes with landmarks", default=False);
     bpy.types.Object.hide_landmarks = bpy.props.BoolProperty(name="Hide Landmarks", description="Flag to show or hide landmarks in a mesh", default=False, update=showHideConstraints);
     

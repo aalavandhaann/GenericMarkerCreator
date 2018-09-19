@@ -24,8 +24,11 @@ class LandmarksPanel(bpy.types.Panel):
             box = layout.box();
             box.label('Global properties');
             row = box.row();
-            row.prop(context.scene, 'use_mirrormode_x');            
+            row.prop(context.scene, 'use_mirrormode_x');       
             row.prop(context.scene, 'landmarks_use_selection');
+            
+            row = box.row();
+            row.prop(context.active_object, 'snap_landmarks');
             
             if(len(context.active_object.generic_landmarks)):
                 box = layout.box();
