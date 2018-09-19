@@ -1,11 +1,14 @@
-import bpy, mathutils, os;
+import bpy, bmesh, mathutils, os;
+from mathutils.bvhtree import BVHTree;
 import numpy as np;
 
 import platform;
 
 from mathutils import Vector, Color;
 from scipy.interpolate.interpolate_wrapper import logarithmic
-from GenericMarkerCreator.misc.meshmathutils import getKDTree;
+from functools import reduce;
+
+from GenericMarkerCreator.misc.meshmathutils import getKDTree, getBarycentricCoordinate, getBarycentricCoordinateFromPolygonFace;
 from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptable;
 
 print('HELPERS LOOKING INTO THE PLATFORM ::: ', platform.system());
@@ -229,6 +232,120 @@ def getMarkerOwner(markerobj):
     return None, False, False;
 
 
+def getMarkerType(context, mesh, landmark):
+    indices = np.array([vid for vid in landmark.v_indices], dtype=int);
+    ratios = np.array([r for r in landmark.v_ratios]);
+    c_nz = np.count_nonzero(ratios);
+    arg_sorted = np.argsort(ratios)[::-1];
+    
+    v_indices = None;
+    bm = getBMMesh(context, mesh, useeditmode=False);    
+    ensurelookuptable(bm);
+    if(c_nz == 1):
+        v_indices = indices[arg_sorted[[0]]];
+        location = bm.verts[v_indices[0]].co.to_tuple();
+        bm.free();
+        return 'VERTEX', v_indices[0], location, [location];
+    elif (c_nz == 2):
+        v_indices = indices[arg_sorted[[0, 1]]];
+        edges_1 = np.array([e.index for e in bm.verts[v_indices[0]].link_edges]);
+        edges_2 = np.array([e.index for e in bm.verts[v_indices[1]].link_edges]);
+        edge_common = np.intersect1d(edges_1, edges_2);
+        location = tuple([val for val in landmark.location]);
+        edge_locations = [bm.verts[v_indices[0]].co.to_tuple(), bm.verts[v_indices[1]].co.to_tuple()];
+        bm.free();
+        return 'EDGE', edge_common.tolist()[0], location, edge_locations;
+    elif(c_nz == 3):
+        v_indices = indices[arg_sorted[[0, 1, 2]]];
+        faces_1 = np.array([f.index for f in bm.verts[v_indices[0]].link_faces]);
+        faces_2 = np.array([f.index for f in bm.verts[v_indices[1]].link_faces]);
+        faces_3 = np.array([f.index for f in bm.verts[v_indices[2]].link_faces]);
+        face_common = reduce(np.intersect1d, (faces_1, faces_2, faces_3));
+        location = tuple([val for val in landmark.location]);
+        face_locations = [bm.verts[v_indices[0]].co.to_tuple(), bm.verts[v_indices[1]].co.to_tuple(), bm.verts[v_indices[2]].co.to_tuple()];
+        bm.free();
+        return 'FACE', face_common.tolist()[0], location, face_locations;
+    
+    return None, None, None;
+
+def subdivideEdge(bm, edge, point):
+        dictio = bmesh.ops.bisect_edges(bm, edges=[edge], cuts=1);
+        dictio['geom_split'][0].co = point;
+        return dictio['geom_split'][0];
+
+def subdivideFace(bm, face, point):
+    retu = bmesh.ops.poke(bm, faces=[face]);
+    thevertex = retu['verts'][0];
+    thevertex.co = point;
+    return thevertex;
+
+def remeshMarkersAsVertices(context, mesh):
+    edge_indices = [];
+    edge_locations = [];
+    
+    face_indices = [];
+    face_locations = [];
+    
+    for gm in mesh.generic_landmarks:
+        gm_on_type, gm_on_type_index, gm_location, gm_locations = getMarkerType(context, mesh, gm);
+        if(gm_on_type == 'EDGE'):
+            edge_locations.append(gm_location);
+            edge_indices.append(gm_on_type_index);
+        elif(gm_on_type == 'FACE'):
+            face_locations.append(gm_location);
+            face_indices.append(gm_on_type_index);
+    
+    verts_and_locations = [];
+    bm = getBMMesh(context, mesh, useeditmode=False);
+    
+    ensurelookuptable(bm);
+    faces = [bm.faces[ind] for ind in face_indices];
+    returned_geometry_faces = bmesh.ops.poke(bm, faces=faces);
+    
+    for i, vert in enumerate(returned_geometry_faces['verts']):
+        verts_and_locations.append((vert.index, face_locations[i]));
+            
+    ensurelookuptable(bm);
+    edges = [bm.edges[ind] for ind in edge_indices];
+    returned_geometry_edges = bmesh.ops.bisect_edges(bm, edges=edges, cuts=1);
+    returned_vertices = [vert for vert in returned_geometry_edges['geom_split'] if isinstance(vert, bmesh.types.BMVert)];
+        
+    for i, vert in enumerate(returned_vertices):
+        verts_and_locations.append((vert.index, edge_locations[i]));
+            
+    ensurelookuptable(bm);
+    
+    bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method=0, ngon_method=0);
+    bm.to_mesh(mesh.data);
+    
+    bm.free();
+   
+    for vid, co in verts_and_locations:
+        mesh.data.vertices[vid].co = co;
+        
+    autoCorrectLandmarksData(context, mesh);
+    
+def autoCorrectLandmarksData(context, mesh):
+    use_tree = BVHTree.FromObject(mesh, context.scene);
+    kd = getKDTree(context, mesh);
+    bm = getBMMesh(context, mesh, False);
+    ensurelookuptable(bm);
+    
+    for gm in mesh.generic_landmarks:
+        loc = [dim for dim in gm.location];
+        mco = Vector((loc[0], loc[1], loc[2]));        
+        co, index, dist = kd.find(mco);
+        v = bm.verts[index];        
+        f = v.link_faces[0];
+            
+        a = f.loops[0].vert;
+        b = f.loops[1].vert;
+        c = f.loops[2].vert;        
+        u,v,w,ratio,isinside = getBarycentricCoordinate(co, a.co, b.co, c.co);
+        gm.v_ratios = [u, v, w];
+        gm.v_indices = [a.index, b.index, c.index];
+    bm.free();
+    
 def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sorting = True, xlabel="Vertex", ylabel="Error", graph_title="Laplacian errors", graph_name="LaplacianErrors_", logarithmic=False, plot_sum=False, plot_average=False, show_title = True, elaborate_title = False):
         colors = [(1,0,0), (0,1,0), (0,0,1), (1,0,1), (1,1,0), (0,1,1), (1,0.5,0.5), (0.5,1,0.5), (0.5,0.5,1.0)];
         minimum = 99999999.0;
