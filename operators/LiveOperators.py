@@ -14,15 +14,23 @@ from GenericMarkerCreator.misc.interactiveutilities import ScreenPoint3D;
 from GenericMarkerCreator.misc.staticutilities import detectMN, applyMarkerColor, addConstraint, getConstraintsKD, deleteObjectWithMarkers, reorderConstraints;
 from GenericMarkerCreator.misc.staticutilities import getMarkersForMirrorX, getGenericLandmark, getMeshForBlenderMarker, getBlenderMarker;
 from GenericMarkerCreator.misc.meshmathutils import getBarycentricCoordinateFromPolygonFace, getBarycentricCoordinate, getCartesianFromBarycentre, getGeneralCartesianFromBarycentre, getTriangleArea;
+from GenericMarkerCreator.misc.mathandmatrices import getObjectBounds;
 
 def DrawGL(self, context):
     
     bgl.glDisable(bgl.GL_DEPTH_TEST);
     bgl.glColor4f(*(1.0, 1.0, 0.0,1.0));
     
-    drawPoint(Vector((0,0,0)), (1,1,1,1));
-    drawHollowCircleBillBoard(context, Vector((0, 0, 0)), 5.0);
-    drawText(context, "Add Markers", Vector((0, 0, 0)), text_scale_value = 0.001, constant_scale = False);
+    for (co, id) in self.M_markers:
+        drawPoint(Vector((0,0,0)), (1,1,1,1));
+        drawHollowCircleBillBoard(context, co, self.marker_ring_size);
+        drawText(context, "id: %d"%(id), co, text_scale_value = 0.001, constant_scale = False);
+        
+    for (co, id) in self.N_markers:
+        drawPoint(Vector((0,0,0)), (1,1,1,1));
+        drawHollowCircleBillBoard(context, co, self.marker_ring_size);
+        drawText(context, "id: %d"%(id), co, text_scale_value = 0.001, constant_scale = False);
+    
     # restore opengl defaults
     bgl.glLineWidth(1);
     bgl.glDisable(bgl.GL_BLEND);
@@ -97,7 +105,7 @@ class LiveLandmarksCreator(bpy.types.Operator):
                     
                     u,v,w,ratio,isinside = getBarycentricCoordinate(hitpoint, a.co, b.co, c.co, snapping=the_mesh.snap_landmarks);
                     finalPoint = getCartesianFromBarycentre(Vector((u,v,w)), a.co, b.co, c.co);
-                    
+                    print('PROCEED TO ADD MARKER : %s, IS INSIDE : %s'%(proceedToAddMarker, isinside));
                     if(isinside):
                         print('ADDING MARKER WITH BARYCENTRIC VALUES ::: ',u,v,w, face.index);
                         addConstraint(context, the_mesh, [u,v,w], [a.index, b.index, c.index], hitpoint);
@@ -121,7 +129,25 @@ class LiveLandmarksCreator(bpy.types.Operator):
                                 addConstraint(context, the_mesh, [u,v,w], [a.index, b.index, c.index], center);
                                 print('ADD MIRROR MARKER AT ', center, u, v, w);
                                 print('IT HAS A NEAREST FACE : ', index, ' AT A DISTANCE ::: ', distance);
-            
+                
+                        del self.M_markers[:];
+                        del self.N_markers[:];
+                        
+                        for gm in self.M.generic_landmarks:
+                            loc = Vector([dim for dim in gm.location]);
+                            loc = self.M.matrix_world * loc;
+                            dictio = (loc, gm.id);
+                            self.M_markers.append(dictio);
+                        
+                        if(self.M != self.N and self.N is not None):
+                            for gm in self.N.generic_landmarks:
+                                loc = Vector([dim for dim in gm.location]);
+                                loc = self.N.matrix_world * loc;
+                                dictio = (loc, gm.id);
+                                self.N_markers.append(dictio);
+                            
+                            
+                
             return {'RUNNING_MODAL'};
 
             
@@ -186,6 +212,22 @@ class LiveLandmarksCreator(bpy.types.Operator):
         self.bvhtree_m = BVHTree.FromObject(self.M, context.scene);
         self.bvhtree_n = BVHTree.FromObject(self.N, context.scene);
         
+        self.M_markers = [];
+        self.N_markers = [];
+        
+        for gm in self.M.generic_landmarks:
+            loc = Vector([dim for dim in gm.location]);
+            loc = self.M.matrix_world * loc;
+            dictio = (loc, gm.id);
+            self.M_markers.append(dictio);
+        
+        if(self.M != self.N and self.N is not None):
+            for gm in self.N.generic_landmarks:
+                loc = Vector([dim for dim in gm.location]);
+                loc = self.N.matrix_world * loc;
+                dictio = (loc, gm.id);
+                self.N_markers.append(dictio);
+        
         maxsize = max(self.mesh.dimensions.x, self.mesh.dimensions.y, self.mesh.dimensions.z);
         markersize = maxsize * 0.01;            
         tempmarkersource = "Marker";
@@ -199,6 +241,16 @@ class LiveLandmarksCreator(bpy.types.Operator):
 
         tempmarker.dimensions = (markersize,markersize,markersize);
         self.mousepointer = tempmarker;
+        
+        real_marker = None;
+        try:
+            real_marker = context.scene.objects[context.scene.landmarks_use_selection];
+        except KeyError:
+            real_marker = tempmarker;
+            
+        min_size, max_size = getObjectBounds(real_marker);
+        size_vector = max_size - min_size;
+        self.marker_ring_size = size_vector.length * 0.003;
         
         self.key = [];
         self.time = [];
