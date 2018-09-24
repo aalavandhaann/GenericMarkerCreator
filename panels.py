@@ -4,7 +4,7 @@ from GenericMarkerCreator.misc.staticutilities import getMeshForBlenderMarker;
 from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
-ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames;
+ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID;
 
 
 
@@ -46,6 +46,9 @@ class LandmarksPanel(bpy.types.Panel):
                 
                 row = box.row();
                 row.operator(ReorderLandmarks.bl_idname);
+                
+                row = box.row();
+                row.operator(AutoLinkLandmarksByID.bl_idname);
                 
                 row = box.row();
                 row.operator(LiveLandmarksCreator.bl_idname);

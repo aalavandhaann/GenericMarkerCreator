@@ -232,7 +232,39 @@ class ChangeLandmarks(bpy.types.Operator):
                 bpy.ops.genericlandmarks.createlandmarks('EXEC_DEFAULT',currentobject=N.name, markersource=tempmarkersource);
             
         return {'FINISHED'};   
+    
+class AutoLinkLandmarksByID(bpy.types.Operator):
+    bl_idname = "genericlandmarks.autolinklandmarksbyid";
+    bl_label = "Auto link Landmarks";
+    bl_description = "Link landmarks of two meshes automatically by id values";
+    bl_options = {'REGISTER', 'UNDO'};
+    currentobject = bpy.props.StringProperty(name="A mesh with markers", default = "--");
+    
+    def execute(self, context):        
+        try:            
+            meshobject = bpy.data.objects[self.currentobject];
+        except:
+            meshobject = context.active_object;
+            
+        if(meshobject is not None):            
+            M, N = detectMN(meshobject);
+            if(not M and not N):
+                M = meshobject;
+                
+            tempmarkersource = context.scene.landmarks_use_selection;
+            if(tempmarkersource.strip() is ""):
+                tempmarkersource = "~PRIMITIVE~";
 
+            if(M and N):
+                N_landmarks_id = [gm.id for gm in N.generic_landmarks];
+                
+                for gm in M.generic_landmarks:
+                    tgm = N.generic_landmarks[N_landmarks_id.index(gm.id)];
+                    M_marker = getBlenderMarker(M, gm);
+                    N_marker = getBlenderMarker(N, tgm);
+                    bpy.ops.genericlandmarks.linklandmarks('EXEC_DEFAULT', marker_1=M_marker.name, marker_2=N_marker.name);
+        return {'FINISHED'};
+    
 class UnLinkLandmarks(bpy.types.Operator):
     bl_idname = "genericlandmarks.unlinklandmarks";
     bl_label = "Unlink Landmarks";
@@ -302,6 +334,8 @@ class LinkLandmarks(bpy.types.Operator):
     bl_description = "Operator to link landmarks";
     bl_options = {'REGISTER', 'UNDO'};
     silence = bpy.props.BoolProperty(name='silence',description="Just add markers without message box", default=False);
+    marker_1 = bpy.props.StringProperty(name="Marker 1", default = "--");
+    marker_2 = bpy.props.StringProperty(name="Marker 2", default = "--");
     
     def linkMarkers(self, context, bmarkerobjects):
         if(len(bmarkerobjects) > 1):
@@ -355,17 +389,24 @@ class LinkLandmarks(bpy.types.Operator):
                     bpy.ops.genericlandmarks.messagebox('INVOKE_DEFAULT',messagetype='ERROR',message=message,messagelinesize=60);
     
     def execute(self, context):
-        bmarkerobjects = [o for o in context.selected_objects if o.is_visual_landmark];
-        self.linkMarkers(context, bmarkerobjects);
-        
-        if(context.scene.use_mirrormode_x):        
-            reflections = getMarkersForMirrorX(context, bmarkerobjects);
-            bpy.ops.object.select_all(action="DESELECT");
-
-            for reflected in reflections:
-                reflected.select = True;                
-            self.linkMarkers(context, reflections);
+        if(self.marker_1 == '--' and self.marker_2 == '--'):
+            bmarkerobjects = [o for o in context.selected_objects if o.is_visual_landmark];
+            if(context.scene.use_mirrormode_x):        
+                reflections = getMarkersForMirrorX(context, bmarkerobjects);
+                bpy.ops.object.select_all(action="DESELECT");
+    
+                for reflected in reflections:
+                    reflected.select = True;                
+                self.linkMarkers(context, reflections);
+        else:
+            m1 = context.scene.objects[self.marker_1];
+            m2 = context.scene.objects[self.marker_2];
+            if(m1.is_visual_landmark and m2.is_visual_landmark):
+                bmarkerobjects = [m1, m2];
+            else:
+                bmarkerobjects = [];
             
+        self.linkMarkers(context, bmarkerobjects);            
         return {'FINISHED'};    
 
 

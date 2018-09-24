@@ -20,7 +20,7 @@ from GenericMarkerCreator.operators.MessageBox import GenericLandmarksMessageBox
 from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
-ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames
+ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID
 
 
 def register():
@@ -37,6 +37,8 @@ def register():
     bpy.utils.register_class(LandmarksPairFinder);
     bpy.utils.register_class(TransferLandmarkNames);
     bpy.utils.register_class(LiveLandmarksCreator);
+    bpy.utils.register_class(AutoLinkLandmarksByID);
+    
     print('OPERATORS BEING REGISTERED -> END');
 
 def unregister():
@@ -53,4 +55,5 @@ def unregister():
     bpy.utils.unregister_class(LandmarksPairFinder);
     bpy.utils.unregister_class(TransferLandmarkNames);
     bpy.utils.unregister_class(LiveLandmarksCreator);
+    bpy.utils.unregister_class(AutoLinkLandmarksByID);
     print('OPERATORS BEING UNREGISTERED -> END');
