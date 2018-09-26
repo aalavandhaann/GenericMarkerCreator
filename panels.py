@@ -93,8 +93,6 @@ class LandmarksPanel(bpy.types.Panel):
                     row.operator(UnLinkLandmarks.bl_idname);
 def register():
     bpy.utils.register_class(LandmarksPanel);
-    pass;
 
 def unregister():
     bpy.utils.unregister_class(LandmarksPanel);
-    pass;

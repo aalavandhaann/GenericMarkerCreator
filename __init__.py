@@ -32,6 +32,8 @@ bl_info={
     }
 
 import bpy;
+from GenericMarkerCreator import operators;
+from GenericMarkerCreator import propertiesregister, panels, keymaps;
 
 def register():
     print('BEGIN REGISTRATION OF MODULES');
@@ -44,13 +46,11 @@ def register():
  
 def unregister():
     propertiesregister.unregister();
-    operators.unregister();
-    keymaps.unregister();
     panels.unregister();
+    keymaps.unregister();
+    operators.unregister();
 #     bpy.utils.register_module(__name__);
 
-from GenericMarkerCreator import operators;
-from GenericMarkerCreator import propertiesregister, panels, keymaps;
-
 if __name__ == "__main__":
+    print('CALLING REGISTRATYION');
     register();

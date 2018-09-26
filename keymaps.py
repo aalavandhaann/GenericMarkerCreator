@@ -47,6 +47,6 @@ def unregister():
             wm.keyconfigs.addon.keymaps.remove(km);
         # clear the list
         addon_keymaps_basics.clear();
-    except (AttributeError, RuntimeError):
+    except (AttributeError, RuntimeError, ReferenceError):
         pass;
     print('KEYMAPS BEING UNREGISTERED -> END');

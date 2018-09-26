@@ -71,10 +71,25 @@ def detectMN(mesh):
     
     return M, N;
 
-def addConstraint(context, mesh, bary_ratios, bary_indices, co, should_reorder=False):
-    m = mesh.generic_landmarks.add();
-    m.id = mesh.total_landmarks;
+def addConstraint(context, mesh, bary_ratios, bary_indices, co, *, should_reorder=False, faceindex = -1, useid=-1):
+    current_ids = [gm.id for gm in mesh.generic_landmarks];
+    
+    try:
+        use_id = int(max(current_ids) + 1);
+    except ValueError:
+        use_id = mesh.total_landmarks;
+        
+    if(useid != -1):
+        if(useid in current_ids):
+            conflicting_id = current_ids[current_ids.index(useid)];
+            error_message = 'The given id: %d in argument conflicts with an existing landmark with id: %d.'%(useid, conflicting_id);
+            raise ValueError(error_message);
+        use_id = useid;
+    
+    m = mesh.generic_landmarks.add();        
+    m.id = use_id;
     m.linked_id = -1;
+    m.faceindex = faceindex;
     m.is_linked = False;
     m.v_indices = bary_indices;
     m.v_ratios = bary_ratios;

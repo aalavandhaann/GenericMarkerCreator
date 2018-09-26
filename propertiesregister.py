@@ -2,6 +2,10 @@ import bpy;
 
 from GenericMarkerCreator.misc.staticutilities import getMarkerOwner, getGenericLandmark
 
+#To enable edit/removal button in the custom properties panel of Blender
+#its necessary to remove the property assignment to entities such as scene, object etc,
+#From the register routine.
+
 def updateNormalMarkerColor(self, context):
     changeMarkerColor(context.active_object);
 
@@ -82,6 +86,7 @@ class GenericLandmark(bpy.types.PropertyGroup):
     is_linked = bpy.props.BoolProperty(name="Is Linked", description="Flag to check if a landmark is linked", default=False);
     id = bpy.props.IntProperty(name="Landmark Id", description="Index or indentifier that is unique for this landmark", default=-1);
     linked_id = bpy.props.IntProperty(name="Linked Constraint Id", description="Index or indentifier of the unique indexed constraint to which this landmark is mapped.", default=-1);    
+    faceindex = bpy.props.IntProperty(name="Triangle Index", description="Index or indentifier of the triangle on which this landmark is placed.", default=-1);
     v_indices = bpy.props.IntVectorProperty(name="Vertex indices", description="Vertex indices on which the barycentric ratios have to be applied",default=(-1, -1, -1));
     v_ratios = bpy.props.FloatVectorProperty(name="Barycentric ratios", description="Given the vertex indices (==3) apply the barycentric ratios for the location of the marker",default=(0.0,0.0,0.0));
     location = bpy.props.FloatVectorProperty(name="Location of Landmark",default=(0.0,0.0,0.0));
@@ -89,8 +94,7 @@ class GenericLandmark(bpy.types.PropertyGroup):
     
         
 def register():
-    bpy.utils.register_class(GenericLandmark);
-    
+    bpy.utils.register_class(GenericLandmark);    
     bpy.types.Object.snap_landmarks = bpy.props.BoolProperty(name="Snap Landmarks", description="Flag to enable/disable snapping", default=False);
         
     bpy.types.Object.is_landmarked_mesh = bpy.props.BoolProperty(name="Is Landmarked Mesh", description="Flag to identify meshes with landmarks", default=False);
@@ -114,8 +118,6 @@ def register():
     bpy.types.Scene.use_mirrormode_x = bpy.props.BoolProperty(name="Mirror Mode X", description="Use mirror mode on X-Axis", default=True);
     bpy.types.Scene.landmarks_use_selection = bpy.props.EnumProperty(name = "Landmarks List", items = get_marker_meshes, description = "Meshes available in the Blender scene to be used for as landmark mesh");
     
-def unregister():
+def unregister():    
     bpy.utils.unregister_class(GenericLandmark);
-    
-    
     
