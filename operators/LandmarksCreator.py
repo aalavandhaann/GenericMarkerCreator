@@ -259,10 +259,14 @@ class AutoLinkLandmarksByID(bpy.types.Operator):
                 N_landmarks_id = [gm.id for gm in N.generic_landmarks];
                 
                 for gm in M.generic_landmarks:
-                    tgm = N.generic_landmarks[N_landmarks_id.index(gm.id)];
-                    M_marker = getBlenderMarker(M, gm);
-                    N_marker = getBlenderMarker(N, tgm);
-                    bpy.ops.genericlandmarks.linklandmarks('EXEC_DEFAULT', marker_1=M_marker.name, marker_2=N_marker.name);
+                    try:
+                        tgm = N.generic_landmarks[N_landmarks_id.index(gm.id)];
+                        M_marker = getBlenderMarker(M, gm);
+                        N_marker = getBlenderMarker(N, tgm);
+                        bpy.ops.genericlandmarks.linklandmarks('EXEC_DEFAULT', marker_1=M_marker.name, marker_2=N_marker.name);
+                    except ValueError:
+                        pass;
+                    
         return {'FINISHED'};
     
 class UnLinkLandmarks(bpy.types.Operator):
