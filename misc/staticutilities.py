@@ -300,7 +300,7 @@ def remeshMarkersAsVertices(context, mesh):
     
     face_indices = [];
     face_locations = [];
-    
+    print('GET ALL LANDMARKS ON EDGE OR FACE');
     for gm in mesh.generic_landmarks:
         gm_on_type, gm_on_type_index, gm_location, gm_locations = getMarkerType(context, mesh, gm);
         if(gm_on_type == 'EDGE'):
@@ -312,14 +312,15 @@ def remeshMarkersAsVertices(context, mesh):
     
     verts_and_locations = [];
     bm = getBMMesh(context, mesh, useeditmode=False);
-    
+    print('POKE THE FACES FIRST');
     ensurelookuptable(bm);
     faces = [bm.faces[ind] for ind in face_indices];
     returned_geometry_faces = bmesh.ops.poke(bm, faces=faces);
     
     for i, vert in enumerate(returned_geometry_faces['verts']):
         verts_and_locations.append((vert.index, face_locations[i]));
-            
+    
+    print('CUT THE EDGES NOW');
     ensurelookuptable(bm);
     edges = [bm.edges[ind] for ind in edge_indices];
     returned_geometry_edges = bmesh.ops.bisect_edges(bm, edges=edges, cuts=1);
@@ -329,26 +330,31 @@ def remeshMarkersAsVertices(context, mesh):
         verts_and_locations.append((vert.index, edge_locations[i]));
             
     ensurelookuptable(bm);
-    
+    print('TRIANGULATING THE MESH AS THE LAST STEP FOR MESH');
     bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method=0, ngon_method=0);
+    print('NOW MAKE THIS NEW TOPOLOGY TO BE THE MESH');
     bm.to_mesh(mesh.data);
     
     bm.free();
    
     for vid, co in verts_and_locations:
         mesh.data.vertices[vid].co = co;
-        
+    print('AUTOCORRECT THE MESH LANDMARKS WITH NEW TOPOLOGY');    
     autoCorrectLandmarksData(context, mesh);
     
 def autoCorrectLandmarksData(context, mesh):
-    use_tree = BVHTree.FromObject(mesh, context.scene);
+    print('AUTOCORRECT: CONSTRUCT KDTREE');
     kd = getKDTree(context, mesh);
+    print('AUTOCORRECT: CONSTRUCT BMESH DATA');
     bm = getBMMesh(context, mesh, False);
+    print('AUTOCORRECT: CONSTRUCT BMESH DATA ENSURETABLE');
     ensurelookuptable(bm);
     
+    print('AUTOCORRECT: ITERATE LANDMARKS AND FIX POSITION');
     for gm in mesh.generic_landmarks:
         loc = [dim for dim in gm.location];
-        mco = Vector((loc[0], loc[1], loc[2]));        
+        mco = Vector((loc[0], loc[1], loc[2]));
+        
         co, index, dist = kd.find(mco);
         v = bm.verts[index];        
         f = v.link_faces[0];
@@ -359,6 +365,8 @@ def autoCorrectLandmarksData(context, mesh):
         u,v,w,ratio,isinside = getBarycentricCoordinate(co, a.co, b.co, c.co);
         gm.v_ratios = [u, v, w];
         gm.v_indices = [a.index, b.index, c.index];
+    
+    print('AUTOCORRECT: FREE THE BMESH DATA');
     bm.free();
     
 def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sorting = True, xlabel="Vertex", ylabel="Error", graph_title="Laplacian errors", graph_name="LaplacianErrors_", logarithmic=False, plot_sum=False, plot_average=False, show_title = True, elaborate_title = False):
