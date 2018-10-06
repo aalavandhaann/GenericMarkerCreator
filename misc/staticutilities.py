@@ -71,7 +71,7 @@ def detectMN(mesh):
     
     return M, N;
 
-def addConstraint(context, mesh, bary_ratios, bary_indices, co, *, should_reorder=False, faceindex = -1, useid=-1):
+def addConstraint(context, mesh, bary_ratios, bary_indices, co, *, should_reorder=False, faceindex = -1, useid=-1, create_visual_landmarks = True):
     current_ids = [gm.id for gm in mesh.generic_landmarks];
     
     try:
@@ -101,10 +101,11 @@ def addConstraint(context, mesh, bary_ratios, bary_indices, co, *, should_reorde
     if(should_reorder):
         bpy.ops.genericlandmarks.reorderlandmarks('EXEC_DEFAULT',currentobject=mesh.name);
     else:
-        tempmarkersource = context.scene.landmarks_use_selection;
-        if(tempmarkersource.strip() is ""):
-            tempmarkersource = "~PRIMITIVE~";
-        bpy.ops.genericlandmarks.createlandmarks('EXEC_DEFAULT',currentobject=mesh.name, markersource=tempmarkersource);
+        if(create_visual_landmarks):
+            tempmarkersource = context.scene.landmarks_use_selection;
+            if(tempmarkersource.strip() is ""):
+                tempmarkersource = "~PRIMITIVE~";
+            bpy.ops.genericlandmarks.createlandmarks('EXEC_DEFAULT',currentobject=mesh.name, markersource=tempmarkersource);
         
     context.scene.objects.active = mesh;
     return m;
