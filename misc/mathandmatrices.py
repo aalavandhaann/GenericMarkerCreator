@@ -202,6 +202,19 @@ def averageFaceArea(c, mesh):
     bm.free();    
     return 1.0 / (10.0 * np.sqrt(np.mean(area)));
 
+def getFaceAreas(c, mesh):
+    faces = mesh.data.polygons;
+    loops = mesh.data.loops;
+    verts = mesh.data.vertices;
+    vpos = getMeshVPos(mesh);
+    fids = np.array([[loops[lid].vertex_index for lid in f.loop_indices] for f in faces]);
+    ab = vpos[fids[:, 1]] - vpos[fids[:, 0]];
+    ac = vpos[fids[:, 2]] - vpos[fids[:, 0]];
+    cross_vectors = np.cross(ab, ac);
+    areas_mags = np.sqrt(np.sum(cross_vectors**2, axis=1));
+    
+    return areas_mags * 0.5, fids;
+
 def getOneRingAreas(c, mesh):
     onebyeight = 1.0 / 8.0;
     oneringareas = [];
