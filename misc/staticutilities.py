@@ -530,65 +530,101 @@ def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sor
                 canvas.print_figure(path+"/"+graph_name+clean_file_name+".svg", transparent=False, bbox_inches='tight');
         
         print('FINISHED SAVING THE FILE');
+
+
+def getInterpolatedColorValues(error_values, A = None, B = None):
+    c = error_values.T;       
+    norm = clrs.Normalize(vmin=A, vmax=B);
+    
+    cmap = get_cmap('jet');
+    c = c / np.amax(c);
+    final_colors = cmap(c)[:, 0:3];        
+    final_weights = norm(c);
+    
+    return final_colors, final_weights;
+
+def applyVertexWeights(context, mesh, weights,*, v_group_name = "lap_errors"):
+    if(None == mesh.vertex_groups.get(v_group_name)):
+        mesh.vertex_groups.new(name=v_group_name);
+    
+    group_ind = mesh.vertex_groups[v_group_name].index;
+    vertex_group = mesh.vertex_groups[group_ind];
+    
+    bm = getBMMesh(context, mesh, False);
+    ensurelookuptable(bm);
+    
+    for v in mesh.data.vertices:
+        n = v.index;
+        vertex_group.add([n], weights[v.index], 'REPLACE');
+        b_vert = bm.verts[v.index];        
+
         
-def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors"):        
-        c = error_values.T;       
-        norm = clrs.Normalize(vmin=A, vmax=B);
-        
-        cmap = get_cmap('jet');
-        c = c / np.amax(c);
-        final_colors = cmap(c)[:, 0:3]
-        
-        final_weights = norm(c);
-        
-        print('GIVEN ARRAY:%s AND FINAL COLORS:%s '%(c.shape, final_colors.shape));
-        
-        colors = {};
-        L_error_color_values = {};
-        
-        for v in error_mesh.data.vertices:            
-            try:
-                (r,g,b,a) = final_colors[v.index];
-            except ValueError:
-                (r,g,b) = final_colors[v.index];            
-            color = Color((r,g,b));
-            L_error_color_values[v.index] = color;
-            colors[v.index] = final_weights[v.index];
-        
-        if(None == error_mesh.vertex_groups.get(v_group_name)):
-            error_mesh.vertex_groups.new(name=v_group_name);
-        
-        if(None == error_mesh.data.vertex_colors.get(v_group_name)):
-            error_mesh.data.vertex_colors.new(v_group_name);
-            
-        group_ind = error_mesh.vertex_groups[v_group_name].index;
-        lap_error_colors = error_mesh.data.vertex_colors[v_group_name];
-        
-        bm = getBMMesh(context, error_mesh, False);
-        ensurelookuptable(bm);
-        
-        for v in error_mesh.data.vertices:
-            n = v.index;
-            error_mesh.vertex_groups[group_ind].add([n], colors[v.index], 'REPLACE');
-            
-            b_vert = bm.verts[v.index];
-            
+    bm.free();
+    
+    return vertex_group;
+
+def applyVertexColors(context, mesh, colors,*, v_group_name = "lap_errors", for_vertices = True):
+    if(None == mesh.data.vertex_colors.get(v_group_name)):
+        mesh.data.vertex_colors.new(v_group_name);
+    
+    vertex_colors = mesh.data.vertex_colors[v_group_name];
+    
+    try:
+        material = bpy.data.materials[mesh.name+'_'+v_group_name];
+    except KeyError:
+        material = bpy.data.materials.new(mesh.name+'_'+v_group_name);
+    
+    try:
+        mesh.data.materials[mesh.name+'_'+v_group_name];
+    except KeyError:
+        mesh.data.materials.append(material);
+    
+    if(for_vertices):
+        bm = getBMMesh(context, mesh, False);
+        ensurelookuptable(bm);        
+        for v in mesh.data.vertices:            
+            b_vert = bm.verts[v.index];            
             for l in b_vert.link_loops:
-                lap_error_colors.data[l.index].color = L_error_color_values[v.index];
-            
+                vertex_colors.data[l.index].color = colors[v.index];                
         bm.free();
-        
+    
+    else:        
+        for f in mesh.data.polygons:
+            for lid in f.loop_indices:
+                vertex_colors.data[lid].color = colors[f.index];
+    
+    material.use_vertex_color_paint = True;
+    
+    return vertex_colors, material;
+
+def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors", use_weights=False): 
+    final_colors, final_weights = getInterpolatedColorValues(error_values, A, B);
+    
+    colors = {};
+    weights = {};
+    
+    iterator_model = [];    
+    for_vertices = not (len(error_values) == len(error_mesh.data.polygons));
+    
+    if(for_vertices):
+        iterator_model = error_mesh.data.vertices;
+    else:
+        iterator_model = error_mesh.data.polygons;
+    
+    for it_elem in iterator_model:            
         try:
-            material = bpy.data.materials[error_mesh.name+'_'+v_group_name];
-        except KeyError:
-            material = bpy.data.materials.new(error_mesh.name+'_'+v_group_name);
-        
-        try:
-            error_mesh.data.materials[error_mesh.name+'_'+v_group_name];
-        except KeyError:
-            error_mesh.data.materials.append(material);
-#         print('MATERIALS ::: ', error_mesh.data.materials);
-        material.use_vertex_color_paint = True;   
+            (r,g,b,a) = final_colors[it_elem.index];
+        except ValueError:
+            (r,g,b) = final_colors[it_elem.index];            
+        color = Color((r,g,b));
+        colors[it_elem.index] = color;
+        weights[it_elem.index] = final_weights[it_elem.index];
+    
+    if(for_vertices and use_weights):
+        applyVertexWeights(context, error_mesh, weights, v_group_name = v_group_name);
+    
+    applyVertexColors(context, error_mesh, colors, v_group_name=v_group_name, for_vertices=for_vertices);
+    
 
 def exportMeshColors(context, mesh, vertex_colors_name, base_location, exportname,*, retain_location=False):
     filepath = bpy.path.abspath(base_location + "/"+exportname+".ply");                 
