@@ -2,7 +2,7 @@ import bpy, bmesh, time, mathutils;
 import numpy as np;
 import scipy as sp;
 import scipy.sparse as spsp;
-
+from scipy.sparse.linalg import eigsh;
 
 from mathutils import Vector;
 
@@ -200,7 +200,7 @@ def getLaplacianMeshUpperIdxs(context, mesh, cotangent = False, overwriteIdxs = 
 #Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)
 #Returns: L (An (N+K) x N sparse matrix, where N is the number of vertices
 #and K is the number of anchors)
-def getLaplacianMatrixUmbrella(context, mesh, anchorsIdx):
+def getLaplacianMatrixUmbrella(context, mesh, anchorsIdx=[]):
     (I, J, V, _) = getLaplacianMeshUpperIdxs(context, mesh);
     #Now fill in the anchors and finish making the Laplacian matrix
     N = len(mesh.data.vertices);
@@ -218,7 +218,7 @@ def getLaplacianMatrixUmbrella(context, mesh, anchorsIdx):
 #Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)
 #Returns: L (An (N+K) x N sparse matrix, where N is the number of vertices
 #and K is the number of anchors)
-def getLaplacianMatrixCotangent(context, mesh, anchorsIdx):
+def getLaplacianMatrixCotangent(context, mesh, anchorsIdx=[]):
     (I, J, V, _) = getLaplacianMeshUpperIdxs(context, mesh, True);
     #Now fill in the anchors and finish making the Laplacian matrix
     N = len(mesh.data.vertices);
@@ -239,7 +239,6 @@ def getLaplacianMeshNormalized(context, mesh, cotangent = False):
     weights[weights == 0] = 1;
     L = L/weights;
     return L;
-
 
 
 def getDuplicatedObject(context, meshobject, meshname="Duplicated", wire = False):

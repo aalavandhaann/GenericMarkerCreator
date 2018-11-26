@@ -6,6 +6,12 @@ from GenericMarkerCreator.misc.staticutilities import getMarkerOwner, getGeneric
 #its necessary to remove the property assignment to entities such as scene, object etc,
 #From the register routine.
 
+def updateSpectralProperty(self, context):
+    if(context.active_object.live_hks):
+        bpy.ops.genericlandmarks.spectralhks('EXEC_DEFAULT', currentobject=context.active_object.name);
+    elif(context.active_object.live_spectral_shape):
+        bpy.ops.genericlandmarks.spectralshape('EXEC_DEFAULT', currentobject=context.active_object.name);
+
 def updateNormalMarkerColor(self, context):
     changeMarkerColor(context.active_object);
 
@@ -112,6 +118,11 @@ def register():
     bpy.types.Object.landmark_id = bpy.props.IntProperty(name = "Landmark Id",description = "The original id of a landmark",default = -1);
     bpy.types.Object.landmark_array_index = bpy.props.IntProperty(name = "Landmark Array Index",description = "The positional index of the marker in the array",default = -1);    
     bpy.types.Object.total_landmarks = bpy.props.IntProperty(name="Total Landmarks", description="Total number of landmarks for this mesh", default=0);
+    
+    bpy.types.Object.eigen_k = bpy.props.IntProperty(name="Eigen K", description="Eigen Rank to solve", default=5, min=1, update=updateSpectralProperty);
+    bpy.types.Object.hks_t = bpy.props.FloatProperty(name="HKS T", description="HKS Value", default=20.0, min=0.1, update=updateSpectralProperty);
+    bpy.types.Object.live_hks = bpy.props.BoolProperty(name='Live HKS', description="Perform Live HKS", default=True);
+    bpy.types.Object.live_spectral_shape = bpy.props.BoolProperty(name='Live Spectral Shape', description="Perform Live spectral shape", default=True);
     
     bpy.types.Object.generic_landmarks = bpy.props.CollectionProperty(type=GenericLandmark);
     
