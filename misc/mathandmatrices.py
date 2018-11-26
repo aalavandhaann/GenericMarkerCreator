@@ -3,6 +3,7 @@ import numpy as np;
 import scipy as sp;
 import scipy.sparse as spsp;
 
+
 from mathutils import Vector;
 
 #Return object bounds as minvector and maxvector
@@ -110,6 +111,135 @@ def meanCurvatureLaplaceWeights(context, mesh, symmetric = False, normalized=Fal
     end = time.time();
     print("FINISHED CONSTRUCTING WEIGHTS FOR ", mesh.name, " IN ", (end - start)); 
     return L;
+
+
+def getFaceCotangent(v1, v2, f, mesh):
+    if not f:
+        return 0.0;
+    vs = f.verts;
+    v3 = None
+    for v in vs:
+        if (not v == v1) and (not v == v2):
+            v3 = v
+            break;
+    if not v3:
+        return 0.0;
+    
+    [i1, i2, i3] = [v1.index, v2.index, v3.index];
+    
+    dV1 = v1.co - v3.co;
+    dV2 = v2.co - v3.co;
+    
+    m1 = dV1.length;
+    m2 = dV2.length;
+    
+    num = dV1.dot(dV2);
+    denom = dV1.cross(dV2);
+    denom = denom.length;
+    if np.abs(denom) > 0:
+        return num/denom;
+    return 0.0;
+
+#Helper function for laplacian mesh
+def getLaplacianMeshUpperIdxs(context, mesh, cotangent = False, overwriteIdxs = []):
+    
+    bm = getBMMesh(context, mesh, useeditmode=False);
+    ensurelookuptable(bm);
+    
+    N = len(bm.verts);
+    I = [];
+    J = [];
+    V = [];
+    weights = [];
+    overwriteIdxs = sorted(overwriteIdxs);
+    oidx = 0;
+    for i in range(N):
+        if oidx < len(overwriteIdxs):
+            if overwriteIdxs[oidx] == i:
+                I.append(i);
+                J.append(i);
+                V.append(1.0);
+                oidx += 1;
+                continue;
+        v1 = bm.verts[i];
+        neighbs = [e.other_vert(v1) for e in v1.link_edges];#v1.getVertexNeighbors()
+        edges = [e for e in v1.link_edges];
+        totalWeight = 0.0;
+        for j, v2 in enumerate(neighbs):
+            I.append(i);
+            J.append(v2.index);
+            weight = 1.0;
+            if cotangent:
+                weight = 0.0;
+                e = edges[j];
+                try:
+                    weight += 0.5 * getFaceCotangent(v1, v2, e.link_faces[0], mesh);
+                except IndexError:
+                    pass;
+                try:
+                    weight += 0.5 * getFaceCotangent(v1, v2, e.link_faces[1], mesh);
+                except IndexError:
+                    pass;
+            V.append(-weight);
+            totalWeight += weight;
+        I.append(i);
+        J.append(i);
+        V.append(totalWeight);
+        weights.append(totalWeight);
+    
+    bm.free();
+    return (I, J, V, weights);
+
+##############################################################
+##                  Laplacian Mesh Editing                  ##
+##############################################################
+
+#Purpose: To return a sparse matrix representing a laplacian matrix with
+#the graph laplacian (D - A) in the upper square part and anchors as the
+#lower rows
+#Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)
+#Returns: L (An (N+K) x N sparse matrix, where N is the number of vertices
+#and K is the number of anchors)
+def getLaplacianMatrixUmbrella(context, mesh, anchorsIdx):
+    (I, J, V, _) = getLaplacianMeshUpperIdxs(context, mesh);
+    #Now fill in the anchors and finish making the Laplacian matrix
+    N = len(mesh.data.vertices);
+    K = len(anchorsIdx);
+    for i in range(K):
+        I.append(N+i);
+        J.append(anchorsIdx[i]);
+        V.append(1.0);
+    [I, J, V] = [np.array(I), np.array(J), np.array(V)];
+    L = spsp.coo_matrix((V, (I, J)), shape=(N+K, N)).tocsr();
+    return L;
+
+#Purpose: To return a sparse matrix representing a laplacian matrix with
+#cotangent weights in the upper square part and anchors as the lower rows
+#Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)
+#Returns: L (An (N+K) x N sparse matrix, where N is the number of vertices
+#and K is the number of anchors)
+def getLaplacianMatrixCotangent(context, mesh, anchorsIdx):
+    (I, J, V, _) = getLaplacianMeshUpperIdxs(context, mesh, True);
+    #Now fill in the anchors and finish making the Laplacian matrix
+    N = len(mesh.data.vertices);
+    K = len(anchorsIdx);
+    for i in range(K):
+        I.append(N+i);
+        J.append(anchorsIdx[i]);
+        V.append(1.0);
+    [I, J, V] = [np.array(I), np.array(J), np.array(V)];
+    L = spsp.coo_matrix((V, (I, J)), shape=(N+K, N)).tocsr();
+    return L;
+
+def getLaplacianMeshNormalized(context, mesh, cotangent = False):
+    (I, J, V, weights) = getLaplacianMeshUpperIdxs(context, mesh, cotangent);
+    N = len(mesh.data.vertices);
+    L = sparse.coo_matrix((V, (I, J)), shape=(N, N)).tocsr();
+    weights = np.array(weights)[:, None];
+    weights[weights == 0] = 1;
+    L = L/weights;
+    return L;
+
 
 
 def getDuplicatedObject(context, meshobject, meshname="Duplicated", wire = False):

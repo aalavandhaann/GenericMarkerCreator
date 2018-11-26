@@ -533,12 +533,17 @@ def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sor
 
 
 def getInterpolatedColorValues(error_values, A = None, B = None):
-    c = error_values.T;       
+#     c = error_values.T;       
     norm = clrs.Normalize(vmin=A, vmax=B);
+#     
+#     cmap = get_cmap('jet');
+#     c = c / np.amax(c);
     
-    cmap = get_cmap('jet');
-    c = c / np.amax(c);
-    final_colors = cmap(c)[:, 0:3];        
+    cmap = get_cmap('jet')
+#     c = cmap(error_values)[:, 0:3]
+    c = error_values;
+    
+    final_colors = cmap(c)[:, 0:3]; 
     final_weights = norm(c);
     
     return final_colors, final_weights;
