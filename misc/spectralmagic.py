@@ -2,10 +2,9 @@ import bpy;
 import numpy as np;
 import scipy as sp;
 import scipy.sparse as spsp;
-from scipy.sparse.linalg import eigsh;
+from scipy.sparse.linalg import eigsh, eigs;
 
-from GenericMarkerCreator.misc.mathandmatrices import getMeshVPos, setMeshVPOS, getLaplacianMatrixCotangent, getLaplacianMeshNormalized;
-
+from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptable, getMeshFaces, getMeshVPos, setMeshVPOS, getMeshFaceAngles, getLaplacianMatrixCotangent, getLaplacianMeshNormalized, getMeshVoronoiAreas;
 ##############################################################
 ##        Spectral Representations / Heat Flow              ##
 ##############################################################
@@ -52,8 +51,9 @@ def getHeat(context, mesh, eigvalues, eigvectors, t, initialVertices, heatValue 
 #Inputs: mesh (polygon mesh object), K (number of eigenvalues/eigenvectors to use)
 #t (the time scale at which to compute the HKS)
 #Returns: hks (a length N array of the HKS values)
-def getHKS(mesh, L, K, t):
+def getHKS(mesh, L, K=5, t=20.0):
     eva, eve = eigsh(L, K, which='LM', sigma=0);
+#     eva, eve = eigs(L, K, which='LM', sigma=0);
     eve = (eve**2)*np.exp(-eva*t)[None, :];
     return np.sum(eve, 1);
 
@@ -64,3 +64,36 @@ def getHKSColors(context, mesh, K=5, HKS_T=20.0):
     heat = heat/np.max(heat);
     return heat;
 #     applyColoringForMeshErrors(context, mesh, heat, v_group_name='hks', use_weights=False);
+
+def getWKS(mesh, L, A, K=3, WKS_E=100, wks_variance=6):
+    num_vertices = L.shape[0];
+    eva, eve = eigs(L,k=K,M=A,sigma=-1e-5,which='LM');
+    eva = np.abs(np.real(eva));
+    idx = np.argsort(eva);
+    eva = eva[idx];
+    eve = eve[:, idx];
+    eve = np.real(eve);
+    WKS = np.zeros((num_vertices,WKS_E));
+    log_E = np.log(np.maximum(np.abs(eva), 1e-6)).T;
+    e = np.linspace(log_E[1], np.max(log_E) / 1.02, WKS_E);
+    sigma = (e[1]-e[0])*wks_variance;
+    sigma_inv = 1.0 / sigma;
+    sigma_inv_2 = (2*sigma**2);
+    C = np.zeros((1, WKS_E));
+    
+    for i in range(WKS_E):
+        np_tiled = np.exp((-(e[i] - log_E)**2) * sigma_inv_2);
+        WKS[:,i] = np.sum( eve**2 * np.matlib.repmat(np_tiled, num_vertices, 1), 1);        
+        C[i] = np.sum(np.exp((-(e[i]-log_E)**2) * sigma_inv_2), axis=np.newaxis);
+    return 0;
+
+def getWKSColors(context, mesh, L, K=100, WKS_E=6):
+    L = getLaplacianMatrixCotangent(context, mesh);
+    A, A_np = getMeshVoronoiAreas(context, mesh);
+    wks = getWKS(mesh, L, A);
+    return wks;
+    
+
+
+
+

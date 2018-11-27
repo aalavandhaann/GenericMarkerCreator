@@ -240,6 +240,88 @@ def getLaplacianMeshNormalized(context, mesh, cotangent = False):
     L = L/weights;
     return L;
 
+def getMeshVoronoiAreas(context, mesh):
+    vertices = getMeshVPos(mesh);
+    faces = getMeshFaces(mesh);
+    angles = getMeshFaceAngles(mesh);
+    squared_edge_length = 0*faces;
+    
+    num_vertices = vertices.shape[0];
+    num_faces = faces.shape[0];
+    
+    for i in range(1,4):
+        i1 = ((i-1) % 3);
+        i2 = (i % 3);
+        i3 = ((i+1) % 3);
+        diff = vertices[faces[:,i2]] - vertices[faces[:,i3]];
+        squared_edge_length[:,i1] = np.sum(diff**2, axis=1);
+    
+    faces_area = np.zeros((num_faces,1));
+    A = np.zeros((num_vertices, 1));
+    
+    onebyeight = 1.0 / 8.0;
+    
+    for i in range(3):
+        faces_area = faces_area + (0.25 * (squared_edge_length[:,i].dot((1.0 / np.tan(angles[:,i])))));    
+    
+    for i in range(num_vertices):
+        for j in range(3):
+            j1 = (j-1) % 3;
+            j2 = j % 3;
+            j3 = (j+1) % 3;
+            ind_i = np.where(faces[:,i1] == i)[0];
+            for l in ind_i:
+                if(np.max(angles[l,:]) < 1.57):
+                    A[i] = A[i] + onebyeight * (1.0 / np.tan(angles[l, i2])) * squared_edge_length[l, i2] + (1.0 / np.tan(angles[l, i3])) * squared_edge_length[l, i3];
+                elif (angles[l, j1] > 1.57):
+                    A[i] = A[i] + faces_area[l] * 0.5;
+                else:
+                    A[i] = A[i] + faces_area[l] * 0.25;
+                    
+    A = np.maximum(A, 1e-8);
+    A.shape = (A.shape[0],);
+    area = np.sum(A);
+    A = A/area;
+    Am = spsp.dia_matrix(np.diag(A));
+    
+    return Am, A;
+
+def setMeshVPOS(mesh, vpos):
+    for index, vect in enumerate(vpos):
+        mesh.data.vertices[index].co = vect;
+
+def getMeshVPos(mesh, extra_points=[]):
+    vpos = [];
+    for v in mesh.data.vertices:
+        vpos.append([v.co.x, v.co.y, v.co.z]);
+    
+    for p in extra_points:
+        vpos.append([p.x, p.y, p.z]);
+    
+    return np.array(vpos);
+
+def getMeshFaceAngles(mesh):
+    bm = getBMMesh(bpy.context, mesh, useeditmode=False);
+    ensurelookuptable(bm);
+    f_angles = [];
+    for f in bm.faces:
+        v_angles = [l.calc_angle() for l in f.loops];
+        f_angles.append(v_angles);
+    bm.free();
+    return np.array(f_angles, dtype=float);
+
+def getMeshFaces(mesh):
+    loops = mesh.data.loops;
+    faces = mesh.data.polygons;
+    f_vids = [];
+    for f in faces:
+        vids = [];
+        for lid in f.loop_indices:
+            vids.append(loops[lid].vertex_index);
+        f_vids.append(vids);
+    
+    return np.array(f_vids, dtype=int);
+
 
 def getDuplicatedObject(context, meshobject, meshname="Duplicated", wire = False):
         if(not context.mode == "OBJECT"):
@@ -274,52 +356,13 @@ def getDuplicatedObject(context, meshobject, meshname="Duplicated", wire = False
 
         return duplicated;
 
-def setMeshVPOS(mesh, vpos):
-    for index, vect in enumerate(vpos):
-        mesh.data.vertices[index].co = vect;
-
-def getMeshVPos(mesh, extra_points=[]):
-    vpos = [];
-    for v in mesh.data.vertices:
-        vpos.append([v.co.x, v.co.y, v.co.z]);
+def getVoronoiAreas(context, mesh):
+    vpos = getMeshVPos(mesh);
+    faces = getMeshFaces(mesh);
+    num_vertices = len(mesh.data.vertices);
+    num_faces = len(mesh.data.polygons);
     
-    for p in extra_points:
-        vpos.append([p.x, p.y, p.z]);
-    
-    return np.array(vpos);
-
-def getBMMesh(context, obj, useeditmode = True):
-    if(not useeditmode):
-        if(context.mode == "OBJECT"):
-            bm = bmesh.new();
-            bm.from_mesh(obj.data);
-        else:
-            bm = bmesh.from_edit_mesh(obj.data);
-            
-            if context.mode != 'EDIT_MESH':
-                bpy.ops.object.mode_set(mode = 'EDIT', toggle = False);
-
-        return bm;
-
-    else:
-        if(context.mode != "OBJECT"):
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False);
-
-        bpy.ops.object.select_all(action='DESELECT') #deselect all object
-        context.scene.objects.active = obj;
-        obj.select = True;
-        bpy.ops.object.mode_set(mode = 'EDIT', toggle = False);
-        bm = bmesh.from_edit_mesh(obj.data);
-        return bm;
-
-def ensurelookuptable(bm):
-    try:
-        bm.verts.ensure_lookup_table();
-        bm.edges.ensure_lookup_table();
-        bm.faces.ensure_lookup_table();
-    except:
-        print('THIS IS AN OLD BLENDER VERSION, SO THIS CHECK NOT NEEDED');
-
+    return faces;
 
 def averageFaceArea(c, mesh):
     bm = getBMMesh(c, mesh, useeditmode=False);
@@ -360,6 +403,38 @@ def getOneRingAreas(c, mesh):
     bm.free();    
     return np.array(oneringareas);
 
+
+def getBMMesh(context, obj, useeditmode = True):
+    if(not useeditmode):
+        if(context.mode == "OBJECT"):
+            bm = bmesh.new();
+            bm.from_mesh(obj.data);
+        else:
+            bm = bmesh.from_edit_mesh(obj.data);
+            
+            if context.mode != 'EDIT_MESH':
+                bpy.ops.object.mode_set(mode = 'EDIT', toggle = False);
+
+        return bm;
+
+    else:
+        if(context.mode != "OBJECT"):
+            bpy.ops.object.mode_set(mode='OBJECT', toggle=False);
+
+        bpy.ops.object.select_all(action='DESELECT') #deselect all object
+        context.scene.objects.active = obj;
+        obj.select = True;
+        bpy.ops.object.mode_set(mode = 'EDIT', toggle = False);
+        bm = bmesh.from_edit_mesh(obj.data);
+        return bm;
+
+def ensurelookuptable(bm):
+    try:
+        bm.verts.ensure_lookup_table();
+        bm.edges.ensure_lookup_table();
+        bm.faces.ensure_lookup_table();
+    except:
+        print('THIS IS AN OLD BLENDER VERSION, SO THIS CHECK NOT NEEDED');
 
 
 #Can be of kd_type, 1-VERT, 2-EDGE, 3-FACE, 4-FACEVERT (contains vertices co with face Index)
