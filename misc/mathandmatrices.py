@@ -213,6 +213,31 @@ def getLaplacianMatrixUmbrella(context, mesh, anchorsIdx=[]):
     L = spsp.coo_matrix((V, (I, J)), shape=(N+K, N)).tocsr();
     return L;
 
+def getWKSLaplacianMatrixCotangent(context, mesh):
+    vertices = getMeshVPos(mesh);
+    faces = getMeshFaces(mesh);
+    angles = getMeshFaceAngles(mesh);
+    num_vertices = vertices.shape[0];    
+    cot_angles = 1.0 / np.tan(angles);
+    L = spsp.csr_matrix((num_vertices, num_vertices), dtype=np.double);
+    for i in range(1,4):
+        i1 = (i-1) % 3;
+        i2 = (i) % 3;
+        i3 = (i+1) % 3;
+        v = -1.0 / np.tan(angles[:, i3]);
+        i = faces[:,i1];
+        j = faces[:,i2];
+        add_mat = spsp.csr_matrix((v, (i, j)), shape=(num_vertices, num_vertices), dtype=np.double);
+        L = L + add_mat;
+        
+    L = 0.5 * (L + L.T);
+    diagonals = -np.sum(L,1).reshape(num_vertices, );
+    D = spsp.dia_matrix((diagonals, [0]), shape=(num_vertices, num_vertices), dtype=np.double);
+    L = D + L;    
+    return L;
+        
+    
+
 #Purpose: To return a sparse matrix representing a laplacian matrix with
 #cotangent weights in the upper square part and anchors as the lower rows
 #Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)
@@ -234,7 +259,7 @@ def getLaplacianMatrixCotangent(context, mesh, anchorsIdx=[]):
 def getLaplacianMeshNormalized(context, mesh, cotangent = False):
     (I, J, V, weights) = getLaplacianMeshUpperIdxs(context, mesh, cotangent);
     N = len(mesh.data.vertices);
-    L = sparse.coo_matrix((V, (I, J)), shape=(N, N)).tocsr();
+    L = spsp.coo_matrix((V, (I, J)), shape=(N, N)).tocsr();
     weights = np.array(weights)[:, None];
     weights[weights == 0] = 1;
     L = L/weights;
@@ -269,10 +294,10 @@ def getMeshVoronoiAreas(context, mesh):
             j1 = (j-1) % 3;
             j2 = j % 3;
             j3 = (j+1) % 3;
-            ind_i = np.where(faces[:,i1] == i)[0];
+            ind_i = np.where(faces[:,j1] == i)[0];
             for l in ind_i:
                 if(np.max(angles[l,:]) < 1.57):
-                    A[i] = A[i] + onebyeight * (1.0 / np.tan(angles[l, i2])) * squared_edge_length[l, i2] + (1.0 / np.tan(angles[l, i3])) * squared_edge_length[l, i3];
+                    A[i] = A[i] + onebyeight * (1.0 / np.tan(angles[l, j2])) * squared_edge_length[l, j2] + (1.0 / np.tan(angles[l, j3])) * squared_edge_length[l, j3];
                 elif (angles[l, j1] > 1.57):
                     A[i] = A[i] + faces_area[l] * 0.5;
                 else:

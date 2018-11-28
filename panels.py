@@ -5,7 +5,7 @@ from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
 ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID;
-from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralShape;
+from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape;
 
 
 class LandmarksPanel(bpy.types.Panel):
@@ -91,15 +91,41 @@ class LandmarksPanel(bpy.types.Panel):
                     
                     row = box.row();
                     row.operator(UnLinkLandmarks.bl_idname);
-            box = layout.box();
-            box.label('Spectral Properties');
-            row = box.row();
+            mainbox = layout.box();
+            mainbox.label('Spectral Properties');
+            row = mainbox.row();
             row.prop(context.active_object, 'eigen_k');
+            
+            box = mainbox.box();
+            box.label('HKS');
             row = box.row();       
             row.prop(context.active_object, 'hks_t');
             row.prop(context.active_object, 'live_hks');
             row = box.row();
             row.operator(SpectralHKS.bl_idname);
+            
+            box = mainbox.box();
+            box.label('WKS');
+            row = box.row();       
+            row.prop(context.active_object, 'wks_e');
+            row.prop(context.active_object, 'wks_variance');
+            row.prop(context.active_object, 'live_wks');
+            row = box.row();
+            row.operator(SpectralWKS.bl_idname);
+            
+            box = mainbox.box();
+            box.label('GISIF');
+            row = box.row();
+            row.prop(context.active_object, 'gisif_threshold');
+            row.prop(context.active_object, 'gisif_group_index');
+            row.prop(context.active_object, 'live_gisif');
+            row = box.row();
+            row.label('GISIF:%s'%(context.active_object.gisif_group_name));
+            row = box.row();
+            row.operator(SpectralGISIF.bl_idname);
+            
+            box = mainbox.box();
+            box.label('Low Pass Filtering (Eigen Shapes)')
             row = box.row();
             row.prop(context.active_object, 'live_spectral_shape');
             row.operator(SpectralShape.bl_idname);

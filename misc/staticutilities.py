@@ -539,7 +539,7 @@ def getInterpolatedColorValues(error_values, A = None, B = None):
 #     cmap = get_cmap('jet');
 #     c = c / np.amax(c);
     
-    cmap = get_cmap('jet')
+    cmap = get_cmap('jet');
 #     c = cmap(error_values)[:, 0:3]
     c = error_values;
     

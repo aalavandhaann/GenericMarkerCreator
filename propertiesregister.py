@@ -9,9 +9,13 @@ from GenericMarkerCreator.misc.staticutilities import getMarkerOwner, getGeneric
 def updateSpectralProperty(self, context):
     if(context.active_object.live_hks):
         bpy.ops.genericlandmarks.spectralhks('EXEC_DEFAULT', currentobject=context.active_object.name);
+    elif(context.active_object.live_wks):
+        bpy.ops.genericlandmarks.spectralwks('EXEC_DEFAULT', currentobject=context.active_object.name);
     elif(context.active_object.live_spectral_shape):
         bpy.ops.genericlandmarks.spectralshape('EXEC_DEFAULT', currentobject=context.active_object.name);
-
+    elif(context.active_object.live_gisif):
+        bpy.ops.genericlandmarks.spectralgisif('EXEC_DEFAULT', currentobject=context.active_object.name);
+        
 def updateNormalMarkerColor(self, context):
     changeMarkerColor(context.active_object);
 
@@ -98,9 +102,15 @@ class GenericLandmark(bpy.types.PropertyGroup):
     location = bpy.props.FloatVectorProperty(name="Location of Landmark",default=(0.0,0.0,0.0));
     landmark_name = bpy.props.StringProperty(name="Landmark Name", default="No Name");
     
-        
+
+class GenericNameIndex(bpy.types.PropertyGroup):
+    index = bpy.props.IntProperty(name="Index", description="Index or indentifier that is unique for this landmark", default=-1);
+    name = bpy.props.StringProperty(name="Label Name", default="No Name");
+
 def register():
     bpy.utils.register_class(GenericLandmark);    
+    bpy.utils.register_class(GenericNameIndex);    
+    
     bpy.types.Object.snap_landmarks = bpy.props.BoolProperty(name="Snap Landmarks", description="Flag to enable/disable snapping", default=False);
         
     bpy.types.Object.is_landmarked_mesh = bpy.props.BoolProperty(name="Is Landmarked Mesh", description="Flag to identify meshes with landmarks", default=False);
@@ -119,9 +129,21 @@ def register():
     bpy.types.Object.landmark_array_index = bpy.props.IntProperty(name = "Landmark Array Index",description = "The positional index of the marker in the array",default = -1);    
     bpy.types.Object.total_landmarks = bpy.props.IntProperty(name="Total Landmarks", description="Total number of landmarks for this mesh", default=0);
     
-    bpy.types.Object.eigen_k = bpy.props.IntProperty(name="Eigen K", description="Eigen Rank to solve", default=5, min=1, update=updateSpectralProperty);
-    bpy.types.Object.hks_t = bpy.props.FloatProperty(name="HKS T", description="HKS Value", default=20.0, min=0.1, update=updateSpectralProperty);
-    bpy.types.Object.live_hks = bpy.props.BoolProperty(name='Live HKS', description="Perform Live HKS", default=True);
+    bpy.types.Object.eigen_k = bpy.props.IntProperty(name="Eigen K", description="Number of Eigen Ranks to solve", default=5, min=1, step=1, update=updateSpectralProperty);
+    bpy.types.Object.hks_t = bpy.props.FloatProperty(name="HKS Time", description="The time at which the heat dissipation for every point is calculated", default=20.0, min=0.1, update=updateSpectralProperty);
+    
+    bpy.types.Object.wks_e = bpy.props.IntProperty(name="WKS Evalautions", description="The Total evaluations for which WKS is calculated", default=100, min=2, step=1,update=updateSpectralProperty);
+    bpy.types.Object.wks_variance = bpy.props.FloatProperty(name="WKS variance", description="The WKS variance to consider", default=6.0, min=0.0001, update=updateSpectralProperty);
+    
+    bpy.types.Object.gisif_collection = bpy.props.CollectionProperty(type=GenericNameIndex);
+    bpy.types.Object.gisif_group_name = bpy.props.StringProperty(name='GISIF Group', description="The current GISIF Group and the clusters", default="");
+    bpy.types.Object.gisif_group_index = bpy.props.IntProperty(name="GISIF Group", description="For a Threshold applied choose the GISIF Group to show", default=0, min=0, step=1,update=updateSpectralProperty);
+    bpy.types.Object.gisif_threshold = bpy.props.FloatProperty(name="GISIF Threshold", description="The threshold for eigen values to group them as repeated", default=0.1, max=1.0, min=0.0, update=updateSpectralProperty);
+
+    
+    bpy.types.Object.live_hks = bpy.props.BoolProperty(name='Live HKS', description="Live HKS means reflect the changes in the scene immediately after values are changed (Eigen K or HKS Time)", default=True);
+    bpy.types.Object.live_wks = bpy.props.BoolProperty(name='Live WKS', description="Live WKS means reflect the changes in the scene immediately after values are changed (Eigen K or HKS Time)", default=True);
+    bpy.types.Object.live_gisif = bpy.props.BoolProperty(name='Live GISIF', description="Live GISIF means reflect the changes in the scene immediately after values are changed (Treshold or Group Index)", default=True);
     bpy.types.Object.live_spectral_shape = bpy.props.BoolProperty(name='Live Spectral Shape', description="Perform Live spectral shape", default=True);
     
     bpy.types.Object.generic_landmarks = bpy.props.CollectionProperty(type=GenericLandmark);
@@ -131,4 +153,5 @@ def register():
     
 def unregister():    
     bpy.utils.unregister_class(GenericLandmark);
+    bpy.utils.unregister_class(GenericNameIndex);
     
