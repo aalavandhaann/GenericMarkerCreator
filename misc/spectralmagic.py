@@ -8,11 +8,31 @@ import numpy.matlib as np_mlib;
 from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptable, getMeshFaces, getMeshVPos, setMeshVPOS, getMeshFaceAngles, getMeshVoronoiAreas;
 from GenericMarkerCreator.misc.mathandmatrices import meanCurvatureLaplaceWeights, getLaplacianMatrixCotangent, getLaplacianMeshNormalized, getWKSLaplacianMatrixCotangent;
 
-CACHE = {
-    'WKS_D':{}, 
-    'HKS_D':{},
-    'GISIF_D': {}
-}
+CACHE = {};
+
+def setMatrixCache(context, mesh, property, value):
+    updateMatrixCache(context, mesh);
+    CACHE[mesh.name][property] = value;
+
+def getMatrixCache(context, mesh, property):
+    updateMatrixCache(context, mesh);
+    
+    try:
+        reading = CACHE[mesh.name][property];
+    except KeyError:
+        return False, [];
+    
+    return True, reading;
+        
+
+def updateMatrixCache(context, mesh):
+    try:
+        meshdata = CACHE[mesh.name];
+    except KeyError:
+        CACHE[mesh.name] = {};
+    
+    
+    
 
 ##############################################################
 ##        Spectral Representations / Heat Flow              ##
@@ -54,38 +74,50 @@ def getHeat(context, mesh, eigvalues, eigvectors, t, initialVertices, heatValue 
     heat = eigvectors.dot(coeffs[:, None]);
     return heat;
 
+def getHKSPredefined(mesh, eva, eve, t=20.0):
+    heat = (eve**2)*np.exp(-eva*t)[None, :];
+    heat = np.sum(heat, 1);
+#     print(np.min(heat), np.max(heat));
+    return heat, eva, eve;
+
 #Purpose: Given a mesh, to approximate its curvature at some measurement scale
 #by recording the amount of heat that stays at each vertex after a unit impulse
 #of heat is applied.  This is called the "Heat Kernel Signature" (HKS)
 #Inputs: mesh (polygon mesh object), K (number of eigenvalues/eigenvectors to use)
 #t (the time scale at which to compute the HKS)
 #Returns: hks (a length N array of the HKS values)
-def getHKS(mesh, L, K=5, t=20.0):
+def getHKSEigens(mesh, L, K=5, t=20.0, *,eva=None, eve=None, M = None):    
     eva, eve = eigsh(L, K, which='LM', sigma=0);
-#     eva, eve = eigs(L, K, which='LM', sigma=0);
-#     print(eva);
-    eve = (eve**2)*np.exp(-eva*t)[None, :];
-    heat = np.sum(eve, 1);
-#     print(np.min(heat), np.max(heat));
-    return heat;
+    return eva, eve;
 
 
 def getHKSColors(context, mesh, K=5, HKS_T=20.0):
-    try:
-        L = CACHE['HKS_D'][mesh.name]['L'];
-    except KeyError:
-        L = getLaplacianMatrixCotangent(context, mesh, []);
-        CACHE['HKS_D'][mesh.name] = {};
-        CACHE['HKS_D'][mesh.name]['L'] = L;
-        
-#     L = getLaplacianMeshNormalized(context, mesh, cotangent = True);
     K = min(len(mesh.data.vertices)-1, K);
-    heat = getHKS(mesh, L, K, HKS_T);    
+    k_exists, cache_k = getMatrixCache(context, mesh, 'HKS_k');
+    HKS_L_Exists, HKS_L = getMatrixCache(context, mesh, 'HKS_L');
+    HKS_EVA_Exists, HKS_EVA = getMatrixCache(context, mesh, 'HKS_eva');
+    HKS_EVE_Exists, HKS_EVE = getMatrixCache(context, mesh, 'HKS_eve');
+    
+    if(not cache_k):
+        setMatrixCache(context, mesh, 'HKS_k', K);
+    
+    if(not HKS_L_Exists):
+        HKS_L = getLaplacianMatrixCotangent(context, mesh, []);
+#         L = getWKSLaplacianMatrixCotangent(context, mesh);
+        setMatrixCache(context, mesh, 'HKS_L', HKS_L);
+    
+    if(getMatrixCache(context, mesh, 'HKS_k') != K or not HKS_EVA_Exists or not HKS_EVE_Exists):
+        HKS_EVA, HKS_EVE = getHKSEigens(mesh, HKS_L, K);
+        setMatrixCache(context, mesh, 'HKS_k', K);
+        setMatrixCache(context, mesh, 'HKS_eva', HKS_EVA);
+        setMatrixCache(context, mesh, 'HKS_eva', HKS_EVE);
+        
+    heat, eva, eve = getHKSPredefined(mesh, HKS_EVA, HKS_EVE, HKS_T);
     heat = heat/np.max(heat);
     return heat, K;
 #     applyColoringForMeshErrors(context, mesh, heat, v_group_name='hks', use_weights=False);
 
-def getWKS(mesh, L, A, K=3, WKS_E=10, wks_variance=6):
+def getWKSEigens(mesh, L, A, K=3):
     num_vertices = L.shape[0];
     #Calculate the eigen values and vectors
 #     eva, eve = eigs(L,k=K,M=A,sigma=-1e-5,which='LM');
@@ -98,8 +130,10 @@ def getWKS(mesh, L, A, K=3, WKS_E=10, wks_variance=6):
     eve = eve[:, idx];    
     eve = np.real(eve);
     
-#     print('E = ', eva);
-#     print('PHI = ', eve);
+    return eva, eve;
+
+def getWKS(mesh, eva, eve, WKS_E=10, wks_variance=6):
+    num_vertices = len(mesh.data.vertices);
     #Calculation of WKS Signature
     WKS = np.zeros((num_vertices,WKS_E));
     log_E = np.log(np.maximum(np.abs(eva), 1e-6)).T;
@@ -122,39 +156,35 @@ def getWKS(mesh, L, A, K=3, WKS_E=10, wks_variance=6):
     return WKS;
 
 def getWKSColors(context, mesh, K=3, WKS_E=6, wks_variance=6):
-    try:
-        L = CACHE['WKS_D'][mesh.name]['L'];
-        A = CACHE['WKS_D'][mesh.name]['Voronoi'];
-    except KeyError:
-        L = getWKSLaplacianMatrixCotangent(context, mesh);
-        A, A_np = getMeshVoronoiAreas(context, mesh);
-        CACHE['WKS_D'][mesh.name] = {};
-        CACHE['WKS_D'][mesh.name]['L'] = L;
-        CACHE['WKS_D'][mesh.name]['Voronoi'] = A;
-    
-#     L = meanCurvatureLaplaceWeights(context, mesh, symmetric=False, normalized=False);
     K = min(len(mesh.data.vertices)-1, K);
-    wks_matrix = getWKS(mesh, L, A, K, WKS_E, wks_variance );
+    
+    k_exists, cache_k = getMatrixCache(context, mesh, 'WKS_k');
+    WKS_L_Exists, WKS_L = getMatrixCache(context, mesh, 'WKS_L');
+    WKS_VORONOI_Exists, WKS_VORONOI = getMatrixCache(context, mesh, 'WKS_VORONOI');
+    WKS_EVA_Exists, WKS_EVA = getMatrixCache(context, mesh, 'WKS_eva');
+    WKS_EVE_Exists, WKS_EVE = getMatrixCache(context, mesh, 'WKS_eve');
+    
+    if(not cache_k):
+        setMatrixCache(context, mesh, 'WKS_k', K);
+    
+    if(not WKS_L_Exists):        
+        WKS_L = getWKSLaplacianMatrixCotangent(context, mesh);
+        setMatrixCache(context, mesh, 'WKS_L', WKS_L);
+        
+    if(not WKS_VORONOI_Exists):        
+        WKS_VORONOI, __ = getMeshVoronoiAreas(context, mesh);
+        setMatrixCache(context, mesh, 'WKS_VORONOI', WKS_VORONOI);
+    
+    if(getMatrixCache(context, mesh, 'WKS_k') != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
+        WKS_EVA, WKS_EVE = getWKSEigens(mesh, WKS_L, WKS_VORONOI, K);
+        setMatrixCache(context, mesh, 'WKS_k', K);
+        setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
+        setMatrixCache(context, mesh, 'WKS_eva', WKS_EVE);
+    
+    wks_matrix = getWKS(mesh, WKS_EVA, WKS_EVE, WKS_E, wks_variance );
     wks_sum = np.sum(wks_matrix, 1);
     wks = wks_sum/np.max(wks_sum);
     return wks, K;
-    
-
-
-def getGISIFEigens(mesh, L, A, K=3, threshold_ratio=0.3, show_group_index = 0):    
-    num_vertices = L.shape[0];
-    #Calculate the eigen values and vectors
-#     eva, eve = eigs(L,k=K,M=A,sigma=-1e-5,which='LM');
-    eva, eve = eigsh(L,k=K,M=A,sigma=-1e-5,which='LM');
-    #Sort the eigen values from smallest to highest
-    # and ensure to use the real part of eigen values, because there might be complex numbers
-    eva = np.abs(np.real(eva));
-    idx = np.argsort(eva);
-    eva = eva[idx];
-    eve = eve[:, idx];    
-    eve = np.real(eve);
-    
-    return eva, eve;
         
 def getGISIFGroups(mesh, eva, eve, threshold_ratio=0.1):
     eva_diff = np.diff(eva);
@@ -181,44 +211,42 @@ def getGISIFGroups(mesh, eva, eve, threshold_ratio=0.1):
 
 def getGISIFColors(context, mesh, K=20, threshold_ratio=0.1, show_group_index = 0):
     K = min(len(mesh.data.vertices)-1, K);
-    try:
-        L = CACHE['GISIF_D'][mesh.name]['L'];
-        A = CACHE['GISIF_D'][mesh.name]['Voronoi'];
-    except KeyError:
-        L = getWKSLaplacianMatrixCotangent(context, mesh);
-        A, A_np = getMeshVoronoiAreas(context, mesh);
-        eva, eve = getGISIFEigens(mesh, L, A, K);
-        CACHE['GISIF_D'][mesh.name] = {};
-        CACHE['GISIF_D'][mesh.name]['L'] = L;
-        CACHE['GISIF_D'][mesh.name]['Voronoi'] = A;
-        try:
-            k_dict = CACHE['GISIF_D'][mesh.name]['K'];
-            if(k_dict['k'] != K):
-                CACHE['GISIF_D'][mesh.name]['K'] = {'k':K, 'threshold':threshold_ratio};
-        except KeyError:
-            CACHE['GISIF_D'][mesh.name]['K'] = {'k':K, 'threshold':threshold_ratio};
+    
+    k_exists, cache_k = getMatrixCache(context, mesh, 'WKS_k');
+    WKS_L_Exists, WKS_L = getMatrixCache(context, mesh, 'WKS_L');
+    WKS_VORONOI_Exists, WKS_VORONOI = getMatrixCache(context, mesh, 'WKS_VORONOI');
+    WKS_EVA_Exists, WKS_EVA = getMatrixCache(context, mesh, 'WKS_eva');
+    WKS_EVE_Exists, WKS_EVE = getMatrixCache(context, mesh, 'WKS_eve');
+    
+    GISIF_THRESHOLD_Exists, GISIF_Threshold = getMatrixCache(context, mesh, 'GISIF_Threshold');
+    GISIF_GROUPS_Exists, GISIF_Groups = getMatrixCache(context, mesh, 'GISIF_Groups');
+    
+    if(not cache_k):
+        setMatrixCache(context, mesh, 'WKS_k', K);
+    
+    if(not WKS_L_Exists):        
+        WKS_L = getWKSLaplacianMatrixCotangent(context, mesh);
+        setMatrixCache(context, mesh, 'WKS_L', WKS_L);
         
-    try:
-        evalues = CACHE['GISIF_D'][mesh.name]['K']['eigenvalues'];
-        evectors = CACHE['GISIF_D'][mesh.name]['K']['evectors'];
-    except KeyError:
-        evalues, evectors = getGISIFEigens(mesh, L, A, K);        
-        all_groups = getGISIFGroups(mesh, evalues, evectors, threshold_ratio);
-        CACHE['GISIF_D'][mesh.name]['K']['eigenvalues']= evalues;
-        CACHE['GISIF_D'][mesh.name]['K']['eigenvalues']= evectors;
-        CACHE['GISIF_D'][mesh.name]['K']['groups'] = all_groups;
+    if(not WKS_VORONOI_Exists):        
+        WKS_VORONOI, __ = getMeshVoronoiAreas(context, mesh);
+        setMatrixCache(context, mesh, 'WKS_VORONOI', WKS_VORONOI);
     
-    if(CACHE['GISIF_D'][mesh.name]['K']['threshold'] != threshold_ratio):
-        all_groups = getGISIFGroups(mesh, evalues, evectors, threshold_ratio);
-        CACHE['GISIF_D'][mesh.name]['K']['threshold'] = threshold_ratio;
-        CACHE['GISIF_D'][mesh.name]['K']['groups'] = all_groups;
-    else:
-        all_groups = CACHE['GISIF_D'][mesh.name]['K']['groups'];
+    if(getMatrixCache(context, mesh, 'WKS_k') != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
+        WKS_EVA, WKS_EVE = getWKSEigens(mesh, WKS_L, WKS_VORONOI, K);
+        setMatrixCache(context, mesh, 'WKS_k', K);
+        setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
+        setMatrixCache(context, mesh, 'WKS_eva', WKS_EVE);
     
-    show_group_index = min(show_group_index, len(all_groups)-1);
-    label, evectors_group  = all_groups[show_group_index];    
+    if(getMatrixCache(context, mesh, 'GISIF_Threshold') != threshold_ratio):
+        GISIF_Groups = getGISIFGroups(mesh, WKS_EVA, WKS_EVE, threshold_ratio);
+        setMatrixCache(context, mesh, 'GISIF_Threshold', threshold_ratio);
+        setMatrixCache(context, mesh, 'GISIF_Groups', GISIF_Groups);
+    
+    show_group_index = min(show_group_index, len(GISIF_Groups)-1);
+    label, evectors_group  = GISIF_Groups[show_group_index];    
     eve = (evectors_group**2);
     gisifs = np.sum(eve, 1);
-    gisifs = gisifs/np.max(gisifs);
+#     gisifs = gisifs/np.max(gisifs);
     return gisifs, K, label;
     

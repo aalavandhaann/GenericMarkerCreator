@@ -8,6 +8,7 @@ import gc
 # and open the template in the editor.
 
 import bpy, time;
+import numpy as np;
 
 from bpy.props import StringProperty;
 from GenericMarkerCreator.misc.spectralmagic import getHKSColors, getWKSColors, getGISIFColors, doLowpassFiltering;
@@ -80,7 +81,8 @@ class SpectralGISIF(bpy.types.Operator):
         if(mesh is not None):
             wks_colors, k, gisif_name = getGISIFColors(context, mesh, mesh.eigen_k, mesh.gisif_threshold, mesh.gisif_group_index);
             mesh.gisif_group_name = gisif_name;
-            applyColoringForMeshErrors(context, mesh, wks_colors, v_group_name='gisif', use_weights=False);
+            normalized_gisif = np.interp(wks_colors, (wks_colors.min(), wks_colors.max()), (0.0,1.0));
+            applyColoringForMeshErrors(context, mesh, normalized_gisif, v_group_name='gisif', use_weights=False, A=np.min(wks_colors), B=np.max(wks_colors));
                 
         return{'FINISHED'};
 

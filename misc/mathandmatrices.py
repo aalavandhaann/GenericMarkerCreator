@@ -273,7 +273,7 @@ def getMeshVoronoiAreas(context, mesh):
     
     num_vertices = vertices.shape[0];
     num_faces = faces.shape[0];
-    
+    print('STARTING WITH SQUARED LENGTH COMPUTATION');
     for i in range(1,4):
         i1 = ((i-1) % 3);
         i2 = (i % 3);
@@ -285,10 +285,12 @@ def getMeshVoronoiAreas(context, mesh):
     A = np.zeros((num_vertices, 1));
     
     onebyeight = 1.0 / 8.0;
-    
+    print('STARTING WITH FACES AREA COMPUTATION');
     for i in range(3):
         faces_area = faces_area + (0.25 * (squared_edge_length[:,i].dot((1.0 / np.tan(angles[:,i])))));    
     
+    print('STARTING WITH AREA SORROUNDING POINTS COMPUTATION');
+    angles = 1.0 / np.tan(angles);
     for i in range(num_vertices):
         for j in range(3):
             j1 = (j-1) % 3;
@@ -297,18 +299,22 @@ def getMeshVoronoiAreas(context, mesh):
             ind_i = np.where(faces[:,j1] == i)[0];
             for l in ind_i:
                 if(np.max(angles[l,:]) < 1.57):
-                    A[i] = A[i] + onebyeight * (1.0 / np.tan(angles[l, j2])) * squared_edge_length[l, j2] + (1.0 / np.tan(angles[l, j3])) * squared_edge_length[l, j3];
+#                     A[i] = A[i] + onebyeight * (1.0 / np.tan(angles[l, j2])) * squared_edge_length[l, j2] + (1.0 / np.tan(angles[l, j3])) * squared_edge_length[l, j3];
+                    A[i] = A[i] + onebyeight * angles[l, j2] * squared_edge_length[l, j2] + angles[l, j3] * squared_edge_length[l, j3];
                 elif (angles[l, j1] > 1.57):
                     A[i] = A[i] + faces_area[l] * 0.5;
                 else:
                     A[i] = A[i] + faces_area[l] * 0.25;
-                    
-    A = np.maximum(A, 1e-8);
-    A.shape = (A.shape[0],);
+    
+    
+    print('STARTING WITH AREA COMPUTATION FINALIZATION');
+    A = np.maximum(A, 1e-8).reshape(A.shape[0], );
+#     A.shape = (A.shape[0],);
     area = np.sum(A);
     A = A/area;
-    Am = spsp.dia_matrix(np.diag(A));
-    
+#     Am = spsp.dia_matrix(np.diag(A));
+    Am = spsp.dia_matrix((A, [0]), shape=(num_vertices, num_vertices));
+    print('FINISHING WITH AREA COMPUTATION FINALIZATION');
     return Am, A;
 
 def setMeshVPOS(mesh, vpos):
