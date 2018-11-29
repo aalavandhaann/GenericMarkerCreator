@@ -98,7 +98,7 @@ def getHKSColors(context, mesh, K=5, HKS_T=20.0):
     HKS_EVA_Exists, HKS_EVA = getMatrixCache(context, mesh, 'HKS_eva');
     HKS_EVE_Exists, HKS_EVE = getMatrixCache(context, mesh, 'HKS_eve');
     
-    if(not cache_k):
+    if(not k_exists):
         setMatrixCache(context, mesh, 'HKS_k', K);
     
     if(not HKS_L_Exists):
@@ -106,11 +106,11 @@ def getHKSColors(context, mesh, K=5, HKS_T=20.0):
 #         L = getWKSLaplacianMatrixCotangent(context, mesh);
         setMatrixCache(context, mesh, 'HKS_L', HKS_L);
     
-    if(getMatrixCache(context, mesh, 'HKS_k') != K or not HKS_EVA_Exists or not HKS_EVE_Exists):
+    if(cache_k != K or not HKS_EVA_Exists or not HKS_EVE_Exists):
         HKS_EVA, HKS_EVE = getHKSEigens(mesh, HKS_L, K);
         setMatrixCache(context, mesh, 'HKS_k', K);
         setMatrixCache(context, mesh, 'HKS_eva', HKS_EVA);
-        setMatrixCache(context, mesh, 'HKS_eva', HKS_EVE);
+        setMatrixCache(context, mesh, 'HKS_eve', HKS_EVE);
         
     heat, eva, eve = getHKSPredefined(mesh, HKS_EVA, HKS_EVE, HKS_T);
     heat = heat/np.max(heat);
@@ -164,22 +164,25 @@ def getWKSColors(context, mesh, K=3, WKS_E=6, wks_variance=6):
     WKS_EVA_Exists, WKS_EVA = getMatrixCache(context, mesh, 'WKS_eva');
     WKS_EVE_Exists, WKS_EVE = getMatrixCache(context, mesh, 'WKS_eve');
     
-    if(not cache_k):
+    if(not k_exists):
         setMatrixCache(context, mesh, 'WKS_k', K);
     
     if(not WKS_L_Exists):        
         WKS_L = getWKSLaplacianMatrixCotangent(context, mesh);
+        print('GETTING WKS LAPLACIANS :');
         setMatrixCache(context, mesh, 'WKS_L', WKS_L);
         
-    if(not WKS_VORONOI_Exists):        
+    if(not WKS_VORONOI_Exists):    
+        print('GETTING WKS VORONOI :');    
         WKS_VORONOI, __ = getMeshVoronoiAreas(context, mesh);
         setMatrixCache(context, mesh, 'WKS_VORONOI', WKS_VORONOI);
     
-    if(getMatrixCache(context, mesh, 'WKS_k') != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
+    if(cache_k != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
+        print('GETTING WKS EIGENS : ', '%s = %s'%(cache_k, K), WKS_EVA_Exists, WKS_EVE_Exists);
         WKS_EVA, WKS_EVE = getWKSEigens(mesh, WKS_L, WKS_VORONOI, K);
         setMatrixCache(context, mesh, 'WKS_k', K);
         setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
-        setMatrixCache(context, mesh, 'WKS_eva', WKS_EVE);
+        setMatrixCache(context, mesh, 'WKS_eve', WKS_EVE);
     
     wks_matrix = getWKS(mesh, WKS_EVA, WKS_EVE, WKS_E, wks_variance );
     wks_sum = np.sum(wks_matrix, 1);
@@ -221,32 +224,39 @@ def getGISIFColors(context, mesh, K=20, threshold_ratio=0.1, show_group_index = 
     GISIF_THRESHOLD_Exists, GISIF_Threshold = getMatrixCache(context, mesh, 'GISIF_Threshold');
     GISIF_GROUPS_Exists, GISIF_Groups = getMatrixCache(context, mesh, 'GISIF_Groups');
     
-    if(not cache_k):
+    if(not k_exists):
         setMatrixCache(context, mesh, 'WKS_k', K);
     
     if(not WKS_L_Exists):        
         WKS_L = getWKSLaplacianMatrixCotangent(context, mesh);
+        print('GETTING GISIF LAPLACIANS :');
         setMatrixCache(context, mesh, 'WKS_L', WKS_L);
         
-    if(not WKS_VORONOI_Exists):        
+    if(not WKS_VORONOI_Exists):    
+        print('GETTING GISIF VORONOI :');    
         WKS_VORONOI, __ = getMeshVoronoiAreas(context, mesh);
         setMatrixCache(context, mesh, 'WKS_VORONOI', WKS_VORONOI);
     
-    if(getMatrixCache(context, mesh, 'WKS_k') != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
+    if(cache_k != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
+        print('GETTING GISIF EIGENS : ', '%s = %s'%(cache_k, K), WKS_EVA_Exists, WKS_EVE_Exists);
         WKS_EVA, WKS_EVE = getWKSEigens(mesh, WKS_L, WKS_VORONOI, K);
         setMatrixCache(context, mesh, 'WKS_k', K);
         setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
-        setMatrixCache(context, mesh, 'WKS_eva', WKS_EVE);
+        setMatrixCache(context, mesh, 'WKS_eve', WKS_EVE);
     
-    if(getMatrixCache(context, mesh, 'GISIF_Threshold') != threshold_ratio):
+    if(GISIF_Threshold != threshold_ratio or not GISIF_THRESHOLD_Exists):
+        print('GETTING GISIF GROUPS :');
         GISIF_Groups = getGISIFGroups(mesh, WKS_EVA, WKS_EVE, threshold_ratio);
         setMatrixCache(context, mesh, 'GISIF_Threshold', threshold_ratio);
         setMatrixCache(context, mesh, 'GISIF_Groups', GISIF_Groups);
     
+    print('SELECTING GISIF GROUPS :');
     show_group_index = min(show_group_index, len(GISIF_Groups)-1);
-    label, evectors_group  = GISIF_Groups[show_group_index];    
+    label, evectors_group  = GISIF_Groups[show_group_index];
+    print('DOING GISIF COMPUTATION :');    
     eve = (evectors_group**2);
     gisifs = np.sum(eve, 1);
+    print('FINISHED AND RETURNING THE COMPUTED VALUES :');
 #     gisifs = gisifs/np.max(gisifs);
     return gisifs, K, label;
     

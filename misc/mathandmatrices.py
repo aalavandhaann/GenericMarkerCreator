@@ -265,7 +265,101 @@ def getLaplacianMeshNormalized(context, mesh, cotangent = False):
     L = L/weights;
     return L;
 
+
 def getMeshVoronoiAreas(context, mesh):
+    vertices = getMeshVPos(mesh);
+    faces = getMeshFaces(mesh);
+    num_vertices = vertices.shape[0];
+    num_faces = faces.shape[0];
+    angles = getMeshFaceAngles(mesh);
+    cotangles = 1.0 / np.tan(angles);
+    squared_edge_length = 0.0*faces;
+    faces_area = np.zeros((num_faces, 1));
+    A = spsp.csr_matrix((num_vertices, num_vertices)); 
+    onebyeight = 1.0 / 8.0;
+    
+    pp = np.zeros((num_faces, 3));
+    qq = np.zeros((num_faces, 3));
+       
+    print('STARTING WITH SQUARED LENGTH COMPUTATION');
+    for i in range(1,4):
+        i1 = ((i-1) % 3);
+        i2 = (i % 3);
+        i3 = ((i+1) % 3);        
+        pp = vertices[faces[:,i2]] - vertices[faces[:,i3]];
+        qq = vertices[faces[:,i3]] - vertices[faces[:,i1]];
+        diff = pp - qq;
+        squared_edge_length[:,i1] = np.sum(diff**2, axis=1);
+    
+    print('STARTING WITH FACES AREA COMPUTATION');
+    
+    for i in range(3):
+#        faces_area = faces_area + (0.25 * (squared_edge_length[:,i].dot((1.0 / np.tan(angles[:,i])))));    
+        faces_area = faces_area + 0.25 * (squared_edge_length[:,i].dot(1.0 / np.tan(angles[:,i])));    
+    
+    #Voronoi safe triangles and their vertex ids
+    n_o_t_i = np.where(np.max(angles, axis=1) < 1.571)[0];        
+    #Voronoi inappropriate vertices
+    o_t_i = np.where(np.max(angles, axis=1) >= 1.571)[0];
+    #vertex ids causing the obtuseness
+    o_t_i_rows, o_t_i_vertices = np.where(angles[o_t_i] >= 1.571);
+    #vertex ids causing the obtuseness
+    o_t_i_n_o_rows, o_t_i_n_o_vertices = np.where(angles[o_t_i] < 1.571);
+    
+    o_t_i_rows = o_t_i[o_t_i_rows];    
+    o_t_i_n_o_rows = o_t_i[o_t_i_n_o_rows];   
+        
+    o_t_i_vertices = faces[o_t_i_rows, o_t_i_vertices];
+    o_t_i_n_o_vertices = faces[o_t_i_n_o_rows, o_t_i_n_o_vertices];
+    
+    def col(d, key):
+        val = d[key];
+        d[key] += 1;
+        return val; 
+    print('STARTING WITH AREA SORROUNDING POINTS COMPUTATION');
+    d = {i:0 for i in range(num_vertices)};
+    values = onebyeight * ((cotangles[n_o_t_i, 1] * squared_edge_length[n_o_t_i, 1]) + (cotangles[n_o_t_i, 2] * squared_edge_length[n_o_t_i, 2]));    
+    rows = faces[n_o_t_i, 0];
+    cols = np.array([col(d, i) for i in rows]);    
+    addA = spsp.csr_matrix((values, (rows, cols)), shape=(num_vertices, num_vertices));    
+    A = spsp.dia_matrix((addA.sum(axis=1).reshape(num_vertices, ), [0]), shape=(num_vertices, num_vertices)) + A;
+    
+    d = {i:0 for i in range(num_vertices)};
+    values = onebyeight * ((cotangles[n_o_t_i, 0] * squared_edge_length[n_o_t_i, 0]) + (cotangles[n_o_t_i, 2] * squared_edge_length[n_o_t_i, 2]));    
+    rows = faces[n_o_t_i, 1];
+    cols = np.array([col(d, i) for i in rows]);    
+    addA = spsp.csr_matrix((values, (rows, cols)), shape=(num_vertices, num_vertices));    
+    A = spsp.dia_matrix((addA.sum(axis=1).reshape(num_vertices, ), [0]), shape=(num_vertices, num_vertices)) + A;
+    
+    d = {i:0 for i in range(num_vertices)};
+    values = onebyeight * ((cotangles[n_o_t_i, 0] * squared_edge_length[n_o_t_i, 0]) + (cotangles[n_o_t_i, 1] * squared_edge_length[n_o_t_i, 1]));    
+    rows = faces[n_o_t_i, 2];
+    cols = np.array([col(d, i) for i in rows]);    
+    addA = spsp.csr_matrix((values, (rows, cols)), shape=(num_vertices, num_vertices));    
+    A = spsp.dia_matrix((addA.sum(axis=1).reshape(num_vertices, ), [0]), shape=(num_vertices, num_vertices)) + A;
+    
+    A = A.diagonal();
+    
+    for i in range(o_t_i_vertices.shape[0]):
+        vid = o_t_i_vertices[i];
+        fid = o_t_i_rows[i];
+        A[vid] = A[vid] + faces_area[fid]/2;
+    
+    for i in range(o_t_i_n_o_vertices.shape[0]):
+        vid = o_t_i_n_o_vertices[i];
+        fid = o_t_i_n_o_rows[i];
+        A[vid] = A[vid] + faces_area[fid]/4;
+    
+    print('STARTING WITH AREA COMPUTATION FINALIZATION');
+    A = np.maximum(A, 1e-8).reshape(A.shape[0], );
+    area = A.sum();
+    A = A / area;
+    Am = spsp.dia_matrix((A, [0]), shape=(num_vertices, num_vertices));
+    #np.set_printoptions(precision=4, suppress=True);
+    print('FINISHING WITH AREA COMPUTATION FINALIZATION');
+    return Am, A;
+
+def getMeshVoronoiAreasSlow(context, mesh):
     vertices = getMeshVPos(mesh);
     faces = getMeshFaces(mesh);
     angles = getMeshFaceAngles(mesh);
