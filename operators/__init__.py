@@ -18,10 +18,10 @@ bl_info = {
 import bpy;
 from GenericMarkerCreator.operators.MessageBox import GenericLandmarksMessageBox;
 from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
-from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator;
+from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator, SignaturesMatching;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
 ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID
-from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape;
+from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures;
 
 
 def register():
@@ -38,11 +38,13 @@ def register():
     bpy.utils.register_class(LandmarksPairFinder);
     bpy.utils.register_class(TransferLandmarkNames);
     bpy.utils.register_class(LiveLandmarksCreator);
+    bpy.utils.register_class(SignaturesMatching);
     bpy.utils.register_class(AutoLinkLandmarksByID);
     bpy.utils.register_class(SpectralHKS);
     bpy.utils.register_class(SpectralWKS);
     bpy.utils.register_class(SpectralGISIF);    
     bpy.utils.register_class(SpectralShape);
+    bpy.utils.register_class(AddSpectralSignatures);
     print('OPERATORS BEING REGISTERED -> END');
 
 def unregister():
@@ -59,9 +61,11 @@ def unregister():
     bpy.utils.unregister_class(LandmarksPairFinder);
     bpy.utils.unregister_class(TransferLandmarkNames);
     bpy.utils.unregister_class(LiveLandmarksCreator);
+    bpy.utils.unregister_class(SignaturesMatching);
     bpy.utils.unregister_class(AutoLinkLandmarksByID);
     bpy.utils.unregister_class(SpectralHKS);
     bpy.utils.unregister_class(SpectralWKS);
     bpy.utils.unregister_class(SpectralGISIF);
     bpy.utils.unregister_class(SpectralShape);
+    bpy.utils.unregister_class(AddSpectralSignatures);
     print('OPERATORS BEING UNREGISTERED -> END');

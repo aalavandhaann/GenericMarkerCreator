@@ -2,10 +2,10 @@ import bpy;
 
 from GenericMarkerCreator.misc.staticutilities import getMeshForBlenderMarker;
 from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
-from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator;
+from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator, SignaturesMatching;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
 ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID;
-from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape;
+from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures;
 
 
 class LandmarksPanel(bpy.types.Panel):
@@ -70,6 +70,12 @@ class LandmarksPanel(bpy.types.Panel):
                 
                 row = box.row();
                 row.operator(LandmarksPairFinder.bl_idname);
+                
+                box = layout.box();
+                box.label('Experimnetal: Signatures Matching');
+                
+                row = box.row();
+                row.operator(SignaturesMatching.bl_idname);
                             
             if(context.active_object.is_visual_landmark):
                 box = layout.box();
@@ -91,6 +97,7 @@ class LandmarksPanel(bpy.types.Panel):
                     
                     row = box.row();
                     row.operator(UnLinkLandmarks.bl_idname);
+                    
             mainbox = layout.box();
             mainbox.label('Spectral Properties');
             row = mainbox.row();
@@ -129,6 +136,12 @@ class LandmarksPanel(bpy.types.Panel):
             row = box.row();
             row.prop(context.active_object, 'live_spectral_shape');
             row.operator(SpectralShape.bl_idname);
+            
+            box = mainbox.box();
+            box.label('Save Signatures')
+            row = box.row();
+            row.prop(context.active_object, 'signatures_dir');
+            row.operator(AddSpectralSignatures.bl_idname);
 def register():
     bpy.utils.register_class(LandmarksPanel);
 

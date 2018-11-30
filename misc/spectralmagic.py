@@ -86,36 +86,9 @@ def getHKSPredefined(mesh, eva, eve, t=20.0):
 #Inputs: mesh (polygon mesh object), K (number of eigenvalues/eigenvectors to use)
 #t (the time scale at which to compute the HKS)
 #Returns: hks (a length N array of the HKS values)
-def getHKSEigens(mesh, L, K=5, t=20.0, *,eva=None, eve=None, M = None):    
-    eva, eve = eigsh(L, K, which='LM', sigma=0);
+def getHKSEigens(mesh, L, K=5, t=20.0, *,eva=None, eve=None, A = None):
+    eva, eve = eigsh(L, K, M=A, which='LM', sigma=0);
     return eva, eve;
-
-
-def getHKSColors(context, mesh, K=5, HKS_T=20.0):
-    K = min(len(mesh.data.vertices)-1, K);
-    k_exists, cache_k = getMatrixCache(context, mesh, 'HKS_k');
-    HKS_L_Exists, HKS_L = getMatrixCache(context, mesh, 'HKS_L');
-    HKS_EVA_Exists, HKS_EVA = getMatrixCache(context, mesh, 'HKS_eva');
-    HKS_EVE_Exists, HKS_EVE = getMatrixCache(context, mesh, 'HKS_eve');
-    
-    if(not k_exists):
-        setMatrixCache(context, mesh, 'HKS_k', K);
-    
-    if(not HKS_L_Exists):
-        HKS_L = getLaplacianMatrixCotangent(context, mesh, []);
-#         L = getWKSLaplacianMatrixCotangent(context, mesh);
-        setMatrixCache(context, mesh, 'HKS_L', HKS_L);
-    
-    if(cache_k != K or not HKS_EVA_Exists or not HKS_EVE_Exists):
-        HKS_EVA, HKS_EVE = getHKSEigens(mesh, HKS_L, K);
-        setMatrixCache(context, mesh, 'HKS_k', K);
-        setMatrixCache(context, mesh, 'HKS_eva', HKS_EVA);
-        setMatrixCache(context, mesh, 'HKS_eve', HKS_EVE);
-        
-    heat, eva, eve = getHKSPredefined(mesh, HKS_EVA, HKS_EVE, HKS_T);
-    heat = heat/np.max(heat);
-    return heat, K;
-#     applyColoringForMeshErrors(context, mesh, heat, v_group_name='hks', use_weights=False);
 
 def getWKSEigens(mesh, L, A, K=3):
     num_vertices = L.shape[0];
@@ -131,6 +104,35 @@ def getWKSEigens(mesh, L, A, K=3):
     eve = np.real(eve);
     
     return eva, eve;
+
+def getHKSColors(context, mesh, K=5, HKS_T=20.0):
+    K = min(len(mesh.data.vertices)-1, K);
+    k_exists, cache_k = getMatrixCache(context, mesh, 'HKS_k');
+    HKS_L_Exists, HKS_L = getMatrixCache(context, mesh, 'HKS_L');
+    HKS_EVA_Exists, HKS_EVA = getMatrixCache(context, mesh, 'HKS_eva');
+    HKS_EVE_Exists, HKS_EVE = getMatrixCache(context, mesh, 'HKS_eve');
+    
+    if(not k_exists):
+        setMatrixCache(context, mesh, 'HKS_k', K);
+    
+    if(not HKS_L_Exists):
+        print('GETTING HKS LAPLACIANS :');
+        HKS_L = getLaplacianMatrixCotangent(context, mesh, []);
+#         L = getWKSLaplacianMatrixCotangent(context, mesh);
+        setMatrixCache(context, mesh, 'HKS_L', HKS_L);
+    
+    if(cache_k != K or not HKS_EVA_Exists or not HKS_EVE_Exists):
+        print('GETTING HKS EIGENS : ', '%s = %s'%(cache_k, K), HKS_EVA_Exists, HKS_EVE_Exists);
+        HKS_EVA, HKS_EVE = getHKSEigens(mesh, HKS_L, K);
+        setMatrixCache(context, mesh, 'HKS_k', K);
+        setMatrixCache(context, mesh, 'HKS_eva', HKS_EVA);
+        setMatrixCache(context, mesh, 'HKS_eve', HKS_EVE);
+    
+    print('GETTING HKS COLOR VALUES');    
+    heat, eva, eve = getHKSPredefined(mesh, HKS_EVA, HKS_EVE, HKS_T);
+    heat = heat/np.max(heat);
+    print('FINISHED AND RETURNING THE COMPUTED HKS VALUES :');
+    return heat, K;
 
 def getWKS(mesh, eva, eve, WKS_E=10, wks_variance=6):
     num_vertices = len(mesh.data.vertices);
@@ -184,9 +186,11 @@ def getWKSColors(context, mesh, K=3, WKS_E=6, wks_variance=6):
         setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
         setMatrixCache(context, mesh, 'WKS_eve', WKS_EVE);
     
+    print('GETTING WKS COLORS VALUES');
     wks_matrix = getWKS(mesh, WKS_EVA, WKS_EVE, WKS_E, wks_variance );
     wks_sum = np.sum(wks_matrix, 1);
     wks = wks_sum/np.max(wks_sum);
+    print('FINISHED AND RETURNING THE COMPUTED WKS VALUES :');
     return wks, K;
         
 def getGISIFGroups(mesh, eva, eve, threshold_ratio=0.1):
@@ -256,7 +260,7 @@ def getGISIFColors(context, mesh, K=20, threshold_ratio=0.1, show_group_index = 
     print('DOING GISIF COMPUTATION :');    
     eve = (evectors_group**2);
     gisifs = np.sum(eve, 1);
-    print('FINISHED AND RETURNING THE COMPUTED VALUES :');
+    print('FINISHED AND RETURNING THE COMPUTED GISIF VALUES :');
 #     gisifs = gisifs/np.max(gisifs);
     return gisifs, K, label;
     

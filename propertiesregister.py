@@ -103,13 +103,21 @@ class GenericLandmark(bpy.types.PropertyGroup):
     landmark_name = bpy.props.StringProperty(name="Landmark Name", default="No Name");
     
 
-class GenericNameIndex(bpy.types.PropertyGroup):
+class GenericPointSignature(bpy.types.PropertyGroup):
     index = bpy.props.IntProperty(name="Index", description="Index or indentifier that is unique for this landmark", default=-1);
-    name = bpy.props.StringProperty(name="Label Name", default="No Name");
+    name = bpy.props.StringProperty(name="Signature Name", default="");
+    
+    gisif = bpy.props.FloatProperty(name = 'GISIF', description="The signature for this point", default=0.00);    
+    k1 = bpy.props.FloatProperty(name = 'k1', description="The k1 signature for this point", default=0.00);
+    k2 = bpy.props.FloatProperty(name = 'k2', description="The k2 signature for this point", default=0.00);
+    
+    normal = bpy.props.FloatVectorProperty(name = 'Curvature Normal', description="The normal signature for this point", default=(0.0, 0.0, 0.0));
+    p1 = bpy.props.FloatVectorProperty(name = 'Principal Direction 1', description="The p1 signature for this point", default=(0.0, 0.0, 0.0));
+    p2 = bpy.props.FloatVectorProperty(name = 'Principal Direction 2', description="The p2 signature for this point", default=(0.0, 0.0, 0.0));
 
 def register():
     bpy.utils.register_class(GenericLandmark);    
-    bpy.utils.register_class(GenericNameIndex);    
+    bpy.utils.register_class(GenericPointSignature);    
     
     bpy.types.Object.snap_landmarks = bpy.props.BoolProperty(name="Snap Landmarks", description="Flag to enable/disable snapping", default=False);
         
@@ -135,7 +143,6 @@ def register():
     bpy.types.Object.wks_e = bpy.props.IntProperty(name="WKS Evalautions", description="The Total evaluations for which WKS is calculated", default=100, min=2, step=1,update=updateSpectralProperty);
     bpy.types.Object.wks_variance = bpy.props.FloatProperty(name="WKS variance", description="The WKS variance to consider", default=6.0, min=0.0001, update=updateSpectralProperty);
     
-    bpy.types.Object.gisif_collection = bpy.props.CollectionProperty(type=GenericNameIndex);
     bpy.types.Object.gisif_group_name = bpy.props.StringProperty(name='GISIF Group', description="The current GISIF Group and the clusters", default="");
     bpy.types.Object.gisif_group_index = bpy.props.IntProperty(name="GISIF Group", description="For a Threshold applied choose the GISIF Group to show", default=0, min=0, step=1,update=updateSpectralProperty);
     bpy.types.Object.gisif_threshold = bpy.props.FloatProperty(name="GISIF Threshold", description="The threshold for eigen values to group them as repeated", default=0.1, max=1.0, min=0.0, update=updateSpectralProperty);
@@ -148,10 +155,16 @@ def register():
     
     bpy.types.Object.generic_landmarks = bpy.props.CollectionProperty(type=GenericLandmark);
     
+    bpy.types.Object.hks_signatures = bpy.props.CollectionProperty(type=GenericPointSignature);
+    bpy.types.Object.wks_signatures = bpy.props.CollectionProperty(type=GenericPointSignature);
+    bpy.types.Object.gisif_signatures = bpy.props.CollectionProperty(type=GenericPointSignature);
+    
+    bpy.types.Object.signatures_dir = bpy.props.StringProperty(name="Directory Signatures", description="Directory where the signatures and the pca space is saved", subtype="DIR_PATH", default="//");
+    
     bpy.types.Scene.use_mirrormode_x = bpy.props.BoolProperty(name="Mirror Mode X", description="Use mirror mode on X-Axis", default=True);
     bpy.types.Scene.landmarks_use_selection = bpy.props.EnumProperty(name = "Landmarks List", items = get_marker_meshes, description = "Meshes available in the Blender scene to be used for as landmark mesh");
     
 def unregister():    
     bpy.utils.unregister_class(GenericLandmark);
-    bpy.utils.unregister_class(GenericNameIndex);
+    bpy.utils.unregister_class(GenericPointSignature);
     
