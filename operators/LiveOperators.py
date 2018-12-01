@@ -24,7 +24,7 @@ def DrawGL(self, context):
     bgl.glColor4f(*(1.0, 1.0, 0.0,1.0));
     
     for (co, id) in self.M_markers:
-        drawPoint(Vector((0,0,0)), (1,1,1,1));
+        drawPoint(Vector((0,0,0)), (1,1,1,1), size=15.0);
         drawHollowCircleBillBoard(context, co, self.marker_ring_size);
         drawText(context, "id: %d"%(id), co, text_scale_value = 0.001, constant_scale = False);
         
@@ -351,9 +351,8 @@ class SignaturesMatching(bpy.types.Operator):
                         loc = other_mesh.matrix_world * vert.co;
                         dictio = (loc, vert.index);
                         c_target.append(dictio);
-                        break;                                
-                    context.area.header_text_set("Barycentric Values: %.8f %.8f %.8f %.8f" % tuple((u,v,w,(u+v+w))));
-                    
+                          
+                    context.area.header_text_set("Barycentric Values: %.8f %.8f %.8f %.8f" % tuple((u,v,w,(u+v+w))));                    
                     self.mousepointer.location = the_mesh.matrix_world * newco;
         
         return {'PASS_THROUGH'};
@@ -433,18 +432,16 @@ class SignaturesMatching(bpy.types.Operator):
         
         try:
             m_path = bpy.path.abspath('%s/%s.mat'%(self.M.signatures_dir, self.M.name));
-            n_path = bpy.path.abspath('%s/%s.mat'%(self.N.signatures_dir, self.N.name));
-            print(m_path);
-            print(n_path);
-            self.M_data = loadmat(m_path)['transformed'];
-            self.N_data = loadmat(n_path)['transformed'];
+            n_path = bpy.path.abspath('%s/%s.mat'%(self.N.signatures_dir, self.N.name));            
+            self.M_data = loadmat(m_path)['X'];
+            self.N_data = loadmat(n_path)['X'];
         except FileNotFoundError:
             message = "Please provide the spectral signatures for both M(%s) and N(%s)"%(self.M.name, self.N.name);
             bpy.ops.genericlandmarks.messagebox('INVOKE_DEFAULT',messagetype='ERROR',message=message,messagelinesize=60);
             return {'FINISHED'};
         
-        self.M_kd_tree = NearestNeighbors(n_neighbors=3).fit(self.M_data);
-        self.N_kd_tree = NearestNeighbors(n_neighbors=3).fit(self.N_data);
+        self.M_kd_tree = NearestNeighbors(n_neighbors=1).fit(self.M_data);
+        self.N_kd_tree = NearestNeighbors(n_neighbors=1).fit(self.N_data);
         
         context.window_manager.modal_handler_add(self);
         

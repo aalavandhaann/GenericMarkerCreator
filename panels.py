@@ -5,7 +5,7 @@ from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator, SignaturesMatching;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
 ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID;
-from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures;
+from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks;
 
 
 class LandmarksPanel(bpy.types.Panel):
@@ -126,6 +126,14 @@ class LandmarksPanel(bpy.types.Panel):
             row.prop(context.active_object, 'gisif_threshold');
             row.prop(context.active_object, 'gisif_group_index');
             row.prop(context.active_object, 'live_gisif');
+            
+            box_linear = box.box();
+            box_linear.label('Linear Combinations');
+            row = box_linear.row();
+            row.prop(context.active_object, 'linear_gisif_combinations');
+            row = box_linear.row();
+            row.prop(context.active_object, 'linear_gisif_n');
+            
             row = box.row();
             row.label('GISIF:%s'%(context.active_object.gisif_group_name));
             row = box.row();
@@ -136,6 +144,12 @@ class LandmarksPanel(bpy.types.Panel):
             row = box.row();
             row.prop(context.active_object, 'live_spectral_shape');
             row.operator(SpectralShape.bl_idname);
+            
+            box = mainbox.box();
+            box.label('Generate Keypoints');
+            row = box.row();
+            row.prop(context.active_object, 'gisif_markers_n');
+            row.operator(AddSpectralSignatureLandmarks.bl_idname);
             
             box = mainbox.box();
             box.label('Save Signatures')

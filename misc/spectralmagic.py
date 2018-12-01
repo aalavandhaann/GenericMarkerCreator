@@ -197,8 +197,9 @@ def getGISIFGroups(mesh, eva, eve, threshold_ratio=0.1):
     eva_diff = np.diff(eva);
     eva_min = np.min(eva);
     eva_max = np.max(eva);
-    eva_range = eva_max - eva_min;
-    eva_select_value = eva_range * threshold_ratio;
+#     eva_range = eva_max - eva_min;
+#     eva_select_value = eva_range * threshold_ratio;
+    eva_select_value = threshold_ratio;
     
     eva_selection = np.where(eva_diff >= eva_select_value)[0];
     eva_groups = np.array([0] + (eva_selection+1).tolist());
@@ -216,7 +217,7 @@ def getGISIFGroups(mesh, eva, eve, threshold_ratio=0.1):
             
     return all_groups;
 
-def getGISIFColors(context, mesh, K=20, threshold_ratio=0.1, show_group_index = 0):
+def getGISIFColors(context, mesh, K=20, threshold_ratio=0.1, show_group_index = 0, linear_gisif_iterations=0):
     K = min(len(mesh.data.vertices)-1, K);
     
     k_exists, cache_k = getMatrixCache(context, mesh, 'WKS_k');
@@ -244,6 +245,13 @@ def getGISIFColors(context, mesh, K=20, threshold_ratio=0.1, show_group_index = 
     if(cache_k != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
         print('GETTING GISIF EIGENS : ', '%s = %s'%(cache_k, K), WKS_EVA_Exists, WKS_EVE_Exists);
         WKS_EVA, WKS_EVE = getWKSEigens(mesh, WKS_L, WKS_VORONOI, K);
+        
+        mesh.spectral_soft_update = True;
+        #Find the standard deviation between the eigenvalues and apply
+        mesh.gisif_threshold = np.std(WKS_EVA);
+        threshold_ratio = mesh.gisif_threshold;
+        mesh.spectral_soft_update = False;
+        
         setMatrixCache(context, mesh, 'WKS_k', K);
         setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
         setMatrixCache(context, mesh, 'WKS_eve', WKS_EVE);
@@ -254,12 +262,33 @@ def getGISIFColors(context, mesh, K=20, threshold_ratio=0.1, show_group_index = 
         setMatrixCache(context, mesh, 'GISIF_Threshold', threshold_ratio);
         setMatrixCache(context, mesh, 'GISIF_Groups', GISIF_Groups);
     
-    print('SELECTING GISIF GROUPS :');
+    print('SELECTING GISIF GROUPS :',WKS_EVA);
     show_group_index = min(show_group_index, len(GISIF_Groups)-1);
-    label, evectors_group  = GISIF_Groups[show_group_index];
+    linear_gisifs = [];
+    if(linear_gisif_iterations > 0):
+        linear_gisif_iterations = linear_gisif_iterations + 1;
+        max_linear_gisifs = min(show_group_index+linear_gisif_iterations, len(GISIF_Groups));
+        iterations_count = (max_linear_gisifs - show_group_index);
+        linear_gisifs = np.zeros((GISIF_Groups[0][1].shape[0]));
+        uselabel = None;
+        print('ITERATIONS COUNT ', show_group_index, iterations_count, len(GISIF_Groups));
+        for i in range(iterations_count):
+            label, evectors_group  = GISIF_Groups[show_group_index+i];
+            if(i == 0):
+                uselabel = label;                
+            eve = (evectors_group**2);
+            gisifs = np.sum(eve, axis=1);
+            linear_gisifs = gisifs - linear_gisifs;
+            
+        return linear_gisifs, K, uselabel;
+        
+    else:
+        label, evectors_group  = GISIF_Groups[show_group_index];
+        eve = (evectors_group**2);
+        gisifs = np.sum(eve, axis=1);
+        
     print('DOING GISIF COMPUTATION :');    
-    eve = (evectors_group**2);
-    gisifs = np.sum(eve, 1);
+    
     print('FINISHED AND RETURNING THE COMPUTED GISIF VALUES :');
 #     gisifs = gisifs/np.max(gisifs);
     return gisifs, K, label;
