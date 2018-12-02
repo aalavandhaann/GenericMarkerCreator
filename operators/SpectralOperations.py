@@ -121,7 +121,7 @@ class SpectralGISIF(bpy.types.Operator):
             gisif_colors, k, gisif_name = getGISIFColorsInner(context, mesh);
             mesh.gisif_group_name = gisif_name;
             mesh.gisif_signatures.clear();
-            if(not mesh.gisif_symmetries):
+            if(not mesh.gisif_symmetries or not len(mesh.generic_landmarks)):
                 normalized_gisifs = np.interp(gisif_colors, (gisif_colors.min(), gisif_colors.max()), (0.0,1.0));                
             else:
                 if(len(mesh.generic_landmarks)):
@@ -136,11 +136,8 @@ class SpectralGISIF(bpy.types.Operator):
                     
                     o_vid = indices[np.argmax(uvw)];
                     normalized_gisifs = gisif_colors / np.sqrt(np.sum(gisif_colors**2));                    
-                    delta_gisif_colors = np.sqrt((normalized_gisifs[o_vid] - normalized_gisifs)**2);
-                    
-                    normalized_gisifs = np.interp(delta_gisif_colors, (delta_gisif_colors.min(), delta_gisif_colors.max()), (0.0,1.0));
-                    
-            
+                    delta_gisif_colors = np.sqrt((normalized_gisifs[o_vid] - normalized_gisifs)**2);                    
+                    normalized_gisifs = np.interp(delta_gisif_colors, (delta_gisif_colors.min(), delta_gisif_colors.max()), (0.0,1.0));            
             applyColoringForMeshErrors(context, mesh, normalized_gisifs, v_group_name='gisif', use_weights=False, A=np.min(normalized_gisifs), B=np.max(normalized_gisifs));
                 
         return{'FINISHED'};
