@@ -73,10 +73,14 @@ class CreateLandmarks(bpy.types.Operator):
     def createConstraintsVisual(self, context, mesh):
         useprimitive = False;
         referencemesh = None;
-        if(self.markersource in "~PRIMITIVE~"):
-            useprimitive = True;
+        
+        if(context.scene.landmarks_use_selection != ''):
+            referencemesh = bpy.data.objects[context.scene.landmarks_use_selection];
+        elif(self.markersource != '' and not self.markersource in '~PRIMITIVE~'):
+            referencemesh = bpy.data.objects[self.markersource];    
         else:
-            referencemesh = bpy.data.objects[self.markersource];
+            useprimitive = True;
+        
         
         material = changeMarkerColor(mesh);
         unlinkedmaterial = changeUnlinkedMarkerColor(mesh);

@@ -153,7 +153,10 @@ def register():
     bpy.types.Object.linear_gisif_combinations = bpy.props.BoolProperty(name='Linear GISIFS?', description="Use Linear GISIF combinations of gisifs from i to i+n", default=False, update=updateSpectralProperty);
     bpy.types.Object.linear_gisif_n = bpy.props.IntProperty(name='Linear GISIF (i+1)', description="Linear GISIF means combinations of gisifs from i to i+n", default=0, min=0, update=updateSpectralProperty);
     
+    bpy.types.Object.gisif_symmetry_index = bpy.props.IntProperty(name='GISIF Symmetry Index', description="For the marker selected find the symmetrical gisifs", default=0, update=updateSpectralProperty);
     bpy.types.Object.gisif_markers_n = bpy.props.IntProperty(name='Spectral Clusters', description="With the computed Spectral signatures generate the lnadmarks for the count specified using GMM clustering", default=1, min=1);
+    bpy.types.Object.gisif_symmetries = bpy.props.BoolProperty(name='GISIF Symmetries', description="Once the GISIFS are clustered add their symmetries also ", default=True);
+    
     
     bpy.types.Object.live_hks = bpy.props.BoolProperty(name='Live HKS', description="Live HKS means reflect the changes in the scene immediately after values are changed (Eigen K or HKS Time)", default=True);
     bpy.types.Object.live_wks = bpy.props.BoolProperty(name='Live WKS', description="Live WKS means reflect the changes in the scene immediately after values are changed (Eigen K or HKS Time)", default=True);
