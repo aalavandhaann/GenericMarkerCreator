@@ -10,6 +10,7 @@ import gc
 import bpy, time;
 import numpy as np;
 import scipy.io as sio;
+
 from sklearn.decomposition import PCA as sklearnPCA;
 from sklearn.preprocessing import StandardScaler;
 from sklearn.mixture  import GaussianMixture;
@@ -143,6 +144,32 @@ class SpectralGISIF(bpy.types.Operator):
         return{'FINISHED'};
 
 #The operators for creating landmarks
+class SpectralFeatures(bpy.types.Operator):
+    bl_idname = "genericlandmarks.spectralfeatures";
+    bl_label = "Features Colors";
+    bl_description = "Feature Properties of a mesh as colors";
+    bl_space_type = "VIEW_3D";
+    bl_region_type = "UI";
+    bl_context = "objectmode";
+    currentobject = bpy.props.StringProperty(name="Initialize for Object", default = "--");     
+        
+    def execute(self, context):
+        try:            
+            mesh = bpy.data.objects[self.currentobject];
+        except:
+            mesh = context.active_object;
+            
+        if(mesh is not None):
+            m_path = bpy.path.abspath('%s/%s.mat'%(mesh.signatures_dir, mesh.name));
+            data = sio.loadmat(m_path)['X'];
+            normalized_gisifs = np.sum(data, axis=1);   
+            normalized_gisifs = np.interp(normalized_gisifs, (normalized_gisifs.min(), normalized_gisifs.max()), (0.0,1.0));    
+            applyColoringForMeshErrors(context, mesh, normalized_gisifs, v_group_name='features', use_weights=False, A=np.min(normalized_gisifs), B=np.max(normalized_gisifs));
+                
+        return{'FINISHED'};
+
+
+#The operators for creating landmarks
 class AddSpectralSignatures(bpy.types.Operator):
     bl_idname = "genericlandmarks.addspectralsignatures";
     bl_label = "Add Spectral Signatures";
@@ -161,15 +188,9 @@ class AddSpectralSignatures(bpy.types.Operator):
         if(mesh is not None):
             gisif_colors, k, gisif_name = getGISIFColorsInner(context, mesh);
             k1_list, k2_list, sx, p1_list, p2_list, mean_list, gaussian_list, normals = need_curvatures(mesh);
-            normalized_gisif_signatures = gisif_colors / np.sqrt(np.sum(gisif_colors**2));
-            
-            print(normals.shape, k1_list.shape, k2_list.shape, p1_list.shape, p2_list.shape, normalized_gisif_signatures.shape);
-            
+            normalized_gisif_signatures = gisif_colors / np.sqrt(np.sum(gisif_colors**2));            
             features = np.hstack((normals, k1_list.reshape(k1_list.shape[0],1), k2_list.reshape(k2_list.shape[0],1), p1_list, p2_list, normalized_gisif_signatures.reshape(normalized_gisif_signatures.shape[0],1)));
-            print(features.shape);
-            mu, transformedFeatures = pcaTransform(context, mesh, features, K=12);
-                
-                
+            mu, transformedFeatures = pcaTransform(context, mesh, features, K=12);                
         return{'FINISHED'};
 
 class SpectralShape(bpy.types.Operator):

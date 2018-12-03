@@ -21,7 +21,7 @@ from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator, SignaturesMatching;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
 ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID
-from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks;
+from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks, SpectralFeatures;
 
 
 
@@ -46,7 +46,8 @@ def register():
     bpy.utils.register_class(SpectralGISIF);    
     bpy.utils.register_class(SpectralShape);
     bpy.utils.register_class(AddSpectralSignatures);
-    bpy.utils.register_class(AddSpectralSignatureLandmarks);    
+    bpy.utils.register_class(AddSpectralSignatureLandmarks);
+    bpy.utils.register_class(SpectralFeatures);    
     print('OPERATORS BEING REGISTERED -> END');
 
 def unregister():
@@ -70,5 +71,6 @@ def unregister():
     bpy.utils.unregister_class(SpectralGISIF);
     bpy.utils.unregister_class(SpectralShape);
     bpy.utils.unregister_class(AddSpectralSignatures);
-    bpy.utils.unregister_class(AddSpectralSignatureLandmarks);    
+    bpy.utils.unregister_class(AddSpectralSignatureLandmarks);
+    bpy.utils.unregister_class(SpectralFeatures);    
     print('OPERATORS BEING UNREGISTERED -> END');

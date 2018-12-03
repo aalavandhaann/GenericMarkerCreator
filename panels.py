@@ -5,7 +5,7 @@ from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator, SignaturesMatching;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
 ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID;
-from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks;
+from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks,SpectralFeatures;
 
 class SpectralGeneralPanel(bpy.types.Panel):
     bl_idname = "OBJECT_PT_spectralpanel"
@@ -28,6 +28,9 @@ class SpectralGeneralPanel(bpy.types.Panel):
             row = box.row();
             row.prop(context.active_object, 'live_spectral_shape');
             row.operator(SpectralShape.bl_idname);
+            
+            row = box.row();
+            row.operator(SpectralFeatures.bl_idname);
     
 
 class HKSPanel(bpy.types.Panel):
