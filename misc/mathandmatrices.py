@@ -243,7 +243,7 @@ def getWKSLaplacianMatrixCotangent(context, mesh):
 #Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)
 #Returns: L (An (N+K) x N sparse matrix, where N is the number of vertices
 #and K is the number of anchors)
-def getLaplacianMatrixCotangent(context, mesh, anchorsIdx=[]):
+def getLaplacianMatrixCotangent(context, mesh, anchorsIdx=[], anchorWeights=[], *, defaultWeight=1.0):
     (I, J, V, _) = getLaplacianMeshUpperIdxs(context, mesh, True);
     #Now fill in the anchors and finish making the Laplacian matrix
     N = len(mesh.data.vertices);
