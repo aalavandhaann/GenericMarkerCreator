@@ -102,7 +102,7 @@ def getWKSEigens(mesh, L, A, K=3):
     eva = eva[idx];
     eve = eve[:, idx];    
     eve = np.real(eve);
-    
+    print('SHAPE OF EIGENS :: %s, %s'%(eva.shape, eve.shape));
     return eva, eve;
 
 def getHKSColors(context, mesh, K=5, HKS_T=20.0):
@@ -181,7 +181,7 @@ def getWKSColors(context, mesh, K=3, WKS_E=6, wks_variance=6):
     
     if(cache_k != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
         print('GETTING WKS EIGENS : ', '%s = %s'%(cache_k, K), WKS_EVA_Exists, WKS_EVE_Exists);
-        WKS_EVA, WKS_EVE = getWKSEigens(mesh, WKS_L, WKS_VORONOI, K);
+        WKS_EVA, WKS_EVE = getWKSEigens(mesh, WKS_L, WKS_VORONOI, K);        
         setMatrixCache(context, mesh, 'WKS_k', K);
         setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
         setMatrixCache(context, mesh, 'WKS_eve', WKS_EVE);
