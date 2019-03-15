@@ -573,7 +573,7 @@ def applyVertexColors(context, mesh, colors,*, v_group_name = "lap_errors", for_
         mesh.data.vertex_colors.new(v_group_name);
     
     vertex_colors = mesh.data.vertex_colors[v_group_name];
-    
+    vertex_colors.active = True;
     try:
         material = bpy.data.materials[mesh.name+'_'+v_group_name];
     except KeyError:
@@ -597,6 +597,7 @@ def applyVertexColors(context, mesh, colors,*, v_group_name = "lap_errors", for_
         for f in mesh.data.polygons:
             for lid in f.loop_indices:
                 vertex_colors.data[lid].color = colors[f.index];
+    
     
     material.use_vertex_color_paint = True;
     
