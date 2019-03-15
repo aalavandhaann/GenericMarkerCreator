@@ -5,8 +5,9 @@ import scipy.sparse as spsp;
 from scipy.sparse.linalg import eigsh, eigs;
 import numpy.matlib as np_mlib;
 
-from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptable, getMeshFaces, getMeshVPos, setMeshVPOS, getMeshFaceAngles, getMeshVoronoiAreas;
-from GenericMarkerCreator.misc.mathandmatrices import meanCurvatureLaplaceWeights, getLaplacianMatrixCotangent, getLaplacianMeshNormalized, getWKSLaplacianMatrixCotangent;
+from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptable, getMeshFaces, getMeshVPos, setMeshVPOS, getMeshFaceAngles;
+from GenericMarkerCreator.misc.mathandmatrices import meanCurvatureLaplaceWeights, getLaplacianMatrixCotangent, getLaplacianMeshNormalized;
+from GenericMarkerCreator.misc.mathandmatrices import getWKSEigens, getWKSLaplacianMatrixCotangent, getMeshVoronoiAreas;
 
 CACHE = {};
 
@@ -14,25 +15,29 @@ def setMatrixCache(context, mesh, property, value):
     updateMatrixCache(context, mesh);
     CACHE[mesh.name][property] = value;
 
+#For some known properties the matrix cache can be set if it doesn't exist. For other properties 
+#just return false and null value if they don't exist in the memory
 def getMatrixCache(context, mesh, property):
-    updateMatrixCache(context, mesh);
-    
+    updateMatrixCache(context, mesh);    
     try:
         reading = CACHE[mesh.name][property];
     except KeyError:
-        return False, [];
-    
+        if(property == 'WKS_L'):
+            WKS_L = getWKSLaplacianMatrixCotangent(context, mesh);
+            setMatrixCache(context, mesh, 'WKS_L', WKS_L);
+            return True, WKS_L;
+        elif (property == 'WKS_VORONOI'):
+            WKS_VORONOI, __ = getMeshVoronoiAreas(context, mesh);
+            setMatrixCache(context, mesh, 'WKS_VORONOI', WKS_VORONOI);
+            return True, WKS_VORONOI;                
+        return False, [];    
     return True, reading;
         
-
 def updateMatrixCache(context, mesh):
     try:
         meshdata = CACHE[mesh.name];
     except KeyError:
         CACHE[mesh.name] = {};
-    
-    
-    
 
 ##############################################################
 ##        Spectral Representations / Heat Flow              ##
@@ -53,7 +58,8 @@ def getLaplacianSpectrum(context, mesh, K):
 #Returns: Nothing (should update mesh.VPos)
 def doLowpassFiltering(context, mesh, K):
     (_, U) = getLaplacianSpectrum(context, mesh, K);
-    return U.dot(U.T.dot(getMeshVPos(mesh)));    
+    print(U.shape);
+    return U.dot(U.T.dot(getMeshVPos(mesh)));
     
 #Purpose: Given a mesh, to simulate heat flow by projecting initial conditions
 #onto the eigenvectors of the Laplacian matrix, and then to sum up the heat
@@ -84,85 +90,23 @@ def getHKSEigens(mesh, L, K=5, t=20.0, *,eva=None, eve=None, A = None):
     eva, eve = eigsh(L, K, M=A, which='LM', sigma=-1e-8);
     return eva, eve;
 
-def getWKSEigens(mesh, L, A, K=3):
-    num_vertices = L.shape[0];
-    #Calculate the eigen values and vectors
-#     eva, eve = eigs(L,k=K,M=A,sigma=-1e-5,which='LM');
-    eva, eve = eigsh(L,k=K,M=A,sigma=-1e-8,which='LM');
-    #Sort the eigen values from smallest to highest
-    # and ensure to use the real part of eigen values, because there might be complex numbers
-    eva = np.abs(np.real(eva));
-    idx = np.argsort(eva);
-    eva = eva[idx];
-    eve = eve[:, idx];    
-    eve = np.real(eve);
-    print('SHAPE OF EIGENS :: %s, %s'%(eva.shape, eve.shape));
-    return eva, eve;
-
 #eigenvalues, eigenvectors, the diagonal matrix M, and times for which HKS is propogated;
-def get_hks(eival,eivec,mat_M,num_times=100):
+def get_hks(eival, eivec,mat_M, num_times=100):
     times = np.logspace(np.log(0.1),np.log(10),num=num_times);
     vertex_areas = spsp.csr_matrix(mat_M).data;
     k = np.zeros((eivec.shape[0],len(times)))
     for idx,t in enumerate(times):
         k[:,idx] = (np.exp(-t*eival)[None,:]*eivec*eivec).sum(axis=1)
-    average_temperature = (vertex_areas[:,None]*k).sum(axis=0)/vertex_areas.sum();
+    average_temperature = (vertex_areas[:,None]*k).sum(axis=0) / vertex_areas.sum();
     hks = k/average_temperature;
     print('HKS SHAPE : ', hks.shape);
     return hks;
 
-def getHKSColors(context, mesh, K=5, HKS_T=20.0, HKS_CURRENT_T = 20):
-    K = min(len(mesh.data.vertices)-1, K);
-    k_exists, cache_k = getMatrixCache(context, mesh, 'WKS_k');
-    
-    WKS_L_Exists, WKS_L = getMatrixCache(context, mesh, 'WKS_L');
-    WKS_VORONOI_Exists, WKS_VORONOI = getMatrixCache(context, mesh, 'WKS_VORONOI');
-    
-    WKS_EVA_Exists, WKS_EVA = getMatrixCache(context, mesh, 'WKS_eva');
-    WKS_EVE_Exists, WKS_EVE = getMatrixCache(context, mesh, 'WKS_eve');
-        
-    hks_t_exists, cache_hks_t = getMatrixCache(context, mesh, 'HKS_T');    
-    hks_matrix_exists, HKS_MATRIX = getMatrixCache(context, mesh, 'HKS_MATRIX');
-        
-    if(not k_exists):
-        setMatrixCache(context, mesh, 'WKS_k', K);
-    
-    if(not WKS_L_Exists):
-        print('GETTING HKS LAPLACIANS :');
-#         HKS_L = getLaplacianMatrixCotangent(context, mesh, []);
-        WKS_L = getWKSLaplacianMatrixCotangent(context, mesh);
-        setMatrixCache(context, mesh, 'WKS_L', WKS_L);
-    
-    if(not WKS_VORONOI_Exists):    
-        print('GETTING WKS VORONOI :');    
-        WKS_VORONOI, __ = getMeshVoronoiAreas(context, mesh);
-        setMatrixCache(context, mesh, 'WKS_VORONOI', WKS_VORONOI);
-    
-    if(cache_k != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
-        print('GETTING HKS EIGENS : ', '%s = %s'%(cache_k, K), WKS_EVA_Exists, WKS_EVE_Exists);
-#         HKS_EVA, HKS_EVE = getHKSEigens(mesh, HKS_L, K);
-        WKS_EVA, WKS_EVE = getWKSEigens(mesh, WKS_L, WKS_VORONOI, K); 
-        setMatrixCache(context, mesh, 'WKS_k', K);
-        setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
-        setMatrixCache(context, mesh, 'WKS_eve', WKS_EVE);
-    
-    if(cache_hks_t != HKS_T or not hks_t_exists or not hks_matrix_exists):
-        HKS_MATRIX = get_hks(WKS_EVA, WKS_EVE, WKS_VORONOI, num_times=HKS_T);
-        setMatrixCache(context, mesh, 'HKS_T', HKS_T);
-        setMatrixCache(context, mesh, 'HKS_MATRIX', HKS_MATRIX);
-        
-    
-    print('GETTING HKS COLOR VALUES');    
-    heat = HKS_MATRIX[:,min(int(HKS_T-1), HKS_CURRENT_T)];
-    print('FINISHED AND RETURNING THE COMPUTED HKS VALUES :');
-    return heat, K;
-
-
 def get_wks(eigen_values, eigen_vectors, energy_steps=None, absolute_sigma=None, num_steps=None, relative_sigma=None):
-#     eigen_values = np.abs(eigen_values);
-#     idx = np.argsort(eigen_values);
-#     eigen_values = eigen_values[idx[1:]];
-#     eigen_vectors = eigen_vectors[:, idx[1:]];
+    eigen_values = np.abs(eigen_values);
+    idx = np.argsort(eigen_values);
+    eigen_values = eigen_values[idx[1:]];
+    eigen_vectors = eigen_vectors[:, idx[1:]];
 
     if energy_steps is None:
         assert num_steps is not None
@@ -212,6 +156,53 @@ def getWKS(mesh, eva, eve, WKS_E=10, wks_variance=6):
     print('WKS SHAPE ', WKS.shape);
     return WKS;
 
+
+def getHKSColors(context, mesh, K=5, HKS_T=20.0, HKS_CURRENT_T = 20):
+    K = min(len(mesh.data.vertices)-1, K);
+    k_exists, cache_k = getMatrixCache(context, mesh, 'WKS_k');
+    
+    WKS_L_Exists, WKS_L = getMatrixCache(context, mesh, 'WKS_L');
+    WKS_VORONOI_Exists, WKS_VORONOI = getMatrixCache(context, mesh, 'WKS_VORONOI');
+    
+    WKS_EVA_Exists, WKS_EVA = getMatrixCache(context, mesh, 'WKS_eva');
+    WKS_EVE_Exists, WKS_EVE = getMatrixCache(context, mesh, 'WKS_eve');
+        
+    hks_t_exists, cache_hks_t = getMatrixCache(context, mesh, 'HKS_T');    
+    hks_matrix_exists, HKS_MATRIX = getMatrixCache(context, mesh, 'HKS_MATRIX');
+           
+    if(not k_exists):
+        setMatrixCache(context, mesh, 'WKS_k', K);
+    
+    if(not WKS_L_Exists):
+        print('GETTING HKS LAPLACIANS :');
+#         HKS_L = getLaplacianMatrixCotangent(context, mesh, []);
+        WKS_L = getWKSLaplacianMatrixCotangent(context, mesh);
+        setMatrixCache(context, mesh, 'WKS_L', WKS_L);
+    
+    if(not WKS_VORONOI_Exists):    
+        print('GETTING WKS VORONOI :');    
+        WKS_VORONOI, __ = getMeshVoronoiAreas(context, mesh);
+        setMatrixCache(context, mesh, 'WKS_VORONOI', WKS_VORONOI);
+    
+    if(cache_k != K or not WKS_EVA_Exists or not WKS_EVE_Exists):
+        print('GETTING HKS EIGENS : ', '%s = %s'%(cache_k, K), WKS_EVA_Exists, WKS_EVE_Exists);
+#         HKS_EVA, HKS_EVE = getHKSEigens(mesh, HKS_L, K);
+        WKS_EVA, WKS_EVE = getWKSEigens(mesh, WKS_L, WKS_VORONOI, K); 
+        setMatrixCache(context, mesh, 'WKS_k', K);
+        setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
+        setMatrixCache(context, mesh, 'WKS_eve', WKS_EVE);
+    
+    if(cache_hks_t != HKS_T or not hks_t_exists or not hks_matrix_exists):
+        HKS_MATRIX = get_hks(WKS_EVA, WKS_EVE, WKS_VORONOI, num_times=HKS_T);
+        setMatrixCache(context, mesh, 'HKS_T', HKS_T);
+        setMatrixCache(context, mesh, 'HKS_MATRIX', HKS_MATRIX);
+        
+    
+    print('GETTING HKS COLOR VALUES');    
+    heat = HKS_MATRIX[:,min(int(HKS_T-1), HKS_CURRENT_T)];
+    print('FINISHED AND RETURNING THE COMPUTED HKS VALUES :');
+    return heat, K;
+
 def getWKSColors(context, mesh, K=3, WKS_E=6, WKS_CURRENT_E=0, wks_variance=0.0):
     K = min(len(mesh.data.vertices)-1, K);
     
@@ -245,13 +236,15 @@ def getWKSColors(context, mesh, K=3, WKS_E=6, WKS_CURRENT_E=0, wks_variance=0.0)
         setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
         setMatrixCache(context, mesh, 'WKS_eve', WKS_EVE);
     
-    if(cache_wks_e != WKS_E or not wks_e_exists or not wks_matrix_exists or not wks_variance !=  WKS_RELATIVE_SIGMA):
-        if(wks_variance> 0.0):
+    if(cache_wks_e != WKS_E or not wks_e_exists or not wks_matrix_exists or wks_variance !=  WKS_RELATIVE_SIGMA):
+        if(wks_variance > 0.0):
             WKS_MATRIX = get_wks(WKS_EVA, WKS_EVE, num_steps=WKS_E, relative_sigma=wks_variance);
         else:
             WKS_MATRIX = get_wks(WKS_EVA, WKS_EVE, num_steps=WKS_E);
+            
         setMatrixCache(context, mesh, 'WKS_E', WKS_E);
-        setMatrixCache(context, mesh, 'WKS_MATRIX', WKS_MATRIX);    
+        setMatrixCache(context, mesh, 'WKS_MATRIX', WKS_MATRIX);
+        setMatrixCache(context, mesh, 'WKS_RELATIVE_SIGMA', wks_variance);
     
     print('GETTING WKS COLORS VALUES');
 #     wks_matrix = getWKS(mesh, WKS_EVA, WKS_EVE, WKS_E, wks_variance );

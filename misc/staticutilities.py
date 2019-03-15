@@ -533,18 +533,11 @@ def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sor
 
 
 def getInterpolatedColorValues(error_values, A = None, B = None):
-#     c = error_values.T;       
-    norm = clrs.Normalize(vmin=A, vmax=B);
-#     
-#     cmap = get_cmap('jet');
-#     c = c / np.amax(c);
-    
+    norm = clrs.Normalize(vmin=A, vmax=B);    
     cmap = get_cmap('jet');
-#     c = cmap(error_values)[:, 0:3]
-    c = error_values;
-    
-    final_colors = cmap(c)[:, 0:3]; 
+    c = error_values;    
     final_weights = norm(c);
+    final_colors = cmap(final_weights)[:, 0:3];
     
     return final_colors, final_weights;
 
@@ -561,9 +554,7 @@ def applyVertexWeights(context, mesh, weights,*, v_group_name = "lap_errors"):
     for v in mesh.data.vertices:
         n = v.index;
         vertex_group.add([n], weights[v.index], 'REPLACE');
-        b_vert = bm.verts[v.index];        
-
-        
+        b_vert = bm.verts[v.index];               
     bm.free();
     
     return vertex_group;

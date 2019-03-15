@@ -9,102 +9,16 @@ import numpy as np
 from numpy import cross, arccos, array
 from numpy.linalg import norm
 from sklearn.neighbors import BallTree
-
-
 from GenericMarkerCreator.misc.lib_rigid_ICP import compute_best_rigid_deformation;
+from GenericMarkerCreator.misc.mathandmatrices import getWKSEigens, getWKSLaplacianMatrixCotangent, getMeshVoronoiAreas;
+from GenericMarkerCreator.misc.mathandmatrices import getMeshFaces, getMeshVPos;
+from GenericMarkerCreator.misc.spectralmagic import get_hks, get_wks, getMatrixCache, setMatrixCache;
 
-def angle(e1,e2):
-    return arccos((e1*e2).sum(axis=1)/(norm(e1,axis=1)*norm(e2,axis=1)));
-
-def get_matM(tri,ver):
-    v1 = ver[tri[:,0],:]
-    v2 = ver[tri[:,1],:]
-    v3 = ver[tri[:,2],:]        
-    e1 = v2-v1
-    e3 = v1-v3    
-    
-    norm_l = cross(e1,-e3,axis=1)
-    norm_mag = norm(norm_l,axis=1)
-#    norm_1 = norm_l/norm_mag[:,None]
-    area = norm_mag/2
-    
-    data = (area/3).repeat(3)
-    row_ind = col_ind = tri.flatten()
-    M = N = ver.shape[0]
-    matM = csr_matrix((data,(row_ind,col_ind)),shape=(M,N))
-    return matM;
-    
-def get_matC(tri,ver):
-    v1 = ver[tri[:,0],:]
-    v2 = ver[tri[:,1],:]
-    v3 = ver[tri[:,2],:]        
-    e1 = v2-v1
-    e2 = v3-v2
-    e3 = v1-v3  
-    
-    hcot_12 = 0.5/np.tan(angle(-e2,e3))
-    hcot_13 = 0.5/np.tan(angle(-e1,e2))
-    hcot_23 = 0.5/np.tan(angle(-e3,e1))
-    
-    data = array([hcot_12,hcot_23,hcot_13]).flatten()
-    row_ind = array([tri[:,0],tri[:,1],tri[:,2]]).flatten()
-    col_ind = array([tri[:,1],tri[:,2],tri[:,0]]).flatten()
-    M = N = ver.shape[0]
-    matC = csr_matrix((data,(row_ind,col_ind)),shape=(M,N))
-    matC = matC + matC.T
-    dia = -matC.sum(axis=1).A.flatten()
-    matC = matC + dia_matrix((dia,0), shape=(M,N))
-    return matC;
-
-def get_eigen(matM,matC,n):
-    eival, eivec = eigsh(matC,n,M=matM,sigma=-1e-8);
-    return eival,eivec
-
-def get_hks(eival,eivec,tri,ver,times):
-    vertex_areas = get_matM(tri, ver).data
-    k = np.zeros((eivec.shape[0],len(times)))
-    for idx,t in enumerate(times):
-        k[:,idx] = (np.exp(-t*eival)[None,:]*eivec*eivec).sum(axis=1)
-    average_temperature = (vertex_areas[:,None]*k).sum(axis=0)/vertex_areas.sum()
-    hks = k/average_temperature
-    return hks
-
-
-def get_wks(eigen_vectors, eigen_values, energy_steps=None, absolute_sigma=None, num_steps=None, relative_sigma=None):
-    eigen_values = np.abs(eigen_values)
-    idx = np.argsort(eigen_values)
-    eigen_values = eigen_values[idx[1:]]
-    eigen_vectors = eigen_vectors[:, idx[1:]]
-
-    if energy_steps is None:
-        assert num_steps is not None
-        energy_steps = np.log(np.linspace(eigen_values[1], eigen_values[-1], num_steps))
-
-    if absolute_sigma is None:
-        if relative_sigma is not None:
-            absolute_sigma = (energy_steps.max() - energy_steps.min()) * relative_sigma
-        else:
-            # from paper
-            delta = (energy_steps.max() - energy_steps.min()) / energy_steps.size
-            absolute_sigma = 7 * delta
-
-    nv = eigen_vectors.shape[0]
-#    nev = eigen_vectors.shape[1]
-    num_steps = energy_steps.size
-
-    desc = np.zeros((nv, num_steps))
-    for idx, e in enumerate(energy_steps):
-
-        coeff = np.exp(-(e-np.log(eigen_values))**2/(2*absolute_sigma))
-        desc[:, idx] = 1/coeff.sum() * (eigen_vectors**2).dot(coeff)
-
-    return desc
-
-def get_coef(eivec,matM,coefficients):
+def get_coef(eivec, matM, coefficients):
     coef = eivec.T.dot(matM.dot(coefficients));
     return coef;
 
-def get_funcMap(coefS,coefT,eivalS,eivalT):
+def get_funcMap(coefS, coefT, eivalS, eivalT):
     k = coefS.shape[0]
     t = coefS.shape[1]
     w_func = 1
@@ -146,34 +60,65 @@ def extract_mapping_original(F, evecs_from, evecs_to):
     dists, others = bt_.query(evecs_to)
     return others.flatten()
 
-def funcmap_correspondences(verS, triS, verT, triT, n_eigen=30):
-    #%% 1. LapBel Operator & Basis (eigenfunc)
-    matMS = get_matM(triS,verS)
-    matCS = get_matC(triS,verS)
-    matMT = get_matM(triT,verT)
-    matCT = get_matC(triT,verT)
+def funcmap_correspondences(context, source, target, n_eigen=30, spectral_steps=100):    
+#     verS, verT, triS, triT = getMeshVPos(source), getMeshVPos(target), getMeshFaces(source), getMeshFaces(target);
     
-    eivalS,eivecS = get_eigen(matMS,matCS,n_eigen);
-    eivalT,eivecT = get_eigen(matMT,matCT,n_eigen);
-    eivalS = eivalS[:-1]
-    eivecS = eivecS[:,:-1]
-    eivalT = eivalT[:-1]
-    eivecT = eivecT[:,:-1]
+    n_eigen = min(len(source.data.vertices)-1, len(target.data.vertices)-1, n_eigen);
+        
+     #%% 1. LapBel Operator & Basis (eigenfunc)    
+    __, matMS = getMatrixCache(context, source, 'WKS_VORONOI');
+    __, matCS = getMatrixCache(context, source, 'WKS_L');
+    __, matMT = getMatrixCache(context, target, 'WKS_VORONOI');
+    __, matCT = getMatrixCache(context, target, 'WKS_L');
+    
+    s_k_exists, s_cache_k = getMatrixCache(context, source, 'WKS_k');
+    WKS_EVA_Exists, WKS_EVA = getMatrixCache(context, source, 'WKS_eva');
+    WKS_EVE_Exists, WKS_EVE = getMatrixCache(context, source, 'WKS_eve');
+        
+    if(not s_k_exists):
+        setMatrixCache(context, source, 'WKS_k', n_eigen);
+    
+    if(s_cache_k != n_eigen or not WKS_EVA_Exists or not WKS_EVE_Exists):
+        eivalS, eivecS = getWKSEigens(source, matMS,matCS,n_eigen);
+        eivalT, eivecT = getWKSEigens(target, matMT,matCT,n_eigen);
+        
+        setMatrixCache(context, source, 'WKS_k', n_eigen);
+        setMatrixCache(context, target, 'WKS_k', n_eigen);
+        
+        setMatrixCache(context, source, 'WKS_eva', eivalS);
+        setMatrixCache(context, target, 'WKS_eva', eivalT);
+        
+        setMatrixCache(context, source, 'WKS_eve', eivecS);
+        setMatrixCache(context, target, 'WKS_eve', eivecT);
+    else:
+        __, eivalS = getMatrixCache(context, source, 'WKS_eva')
+        __, eivalT = getMatrixCache(context, target, 'WKS_eva');
+        __, eivecS = getMatrixCache(context, source, 'WKS_eve')
+        __, eivecT = getMatrixCache(context, target, 'WKS_eve');
+        
+#     eivalS = eivalS[:-1]
+#     eivecS = eivecS[:,:-1]
+#     eivalT = eivalT[:-1]
+#     eivecT = eivecT[:,:-1]
     
     #%% 2. Function Representation (HKS & WKS) & its Coefficient
-    times = np.logspace(np.log(0.1),np.log(10),num=100)
-    hksS = get_hks(eivalS,eivecS,triS,verS,times)
-    hksT = get_hks(eivalT,eivecT,triT,verT,times)
-    wksS = get_wks(eivecS, eivalS,num_steps=100)
-    wksT = get_wks(eivecT, eivalT,num_steps=100)
-     
-    coefhS = get_coef(eivecS,matMS,hksS)
-    coefhT = get_coef(eivecT,matMT,hksT)
-    coefwS = get_coef(eivecS,matMS,wksS)
-    coefwT = get_coef(eivecT,matMT,wksT)
+    hksS = get_hks(eivalS, eivecS, matMS, spectral_steps);
+    hksT = get_hks(eivalT, eivecT, matMT, spectral_steps);
+    wksS = get_wks(eivalS, eivecS, num_steps=spectral_steps);
+    wksT = get_wks(eivalT, eivecT, num_steps=spectral_steps);
     
-    funcMap = get_funcMap(coefhS,coefhT,eivalS,eivalT);
-    eivecS_mapped = (funcMap.dot(eivecS.T)).T
+    #Experimental
+    hksS = getMeshVPos(source);
+    hksT = getMeshVPos(target);
+    
+     
+    coefhS = get_coef(eivecS, matMS, hksS);
+    coefhT = get_coef(eivecT, matMT, hksT);
+#     coefwS = get_coef(eivecS, matMS, wksS);
+#     coefwT = get_coef(eivecT, matMT, wksT);
+    
+    funcMap = get_funcMap(coefhS, coefhT, eivalS, eivalT);
+    eivecS_mapped = (funcMap.dot(eivecS.T)).T;
     
     return eivecS_mapped, funcMap;
     

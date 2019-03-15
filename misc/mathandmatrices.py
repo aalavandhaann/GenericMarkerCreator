@@ -112,6 +112,32 @@ def meanCurvatureLaplaceWeights(context, mesh, symmetric = False, normalized=Fal
     print("FINISHED CONSTRUCTING WEIGHTS FOR ", mesh.name, " IN ", (end - start)); 
     return L;
 
+#Purpose: To return a sparse matrix representing a laplacian matrix with
+#cotangent weights in the upper square part and anchors as the lower rows
+#Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)
+#Returns: L (An (N+K) x N sparse matrix, where N is the number of vertices
+#and K is the number of anchors)
+def getLaplacianMatrixCotangent(context, mesh, anchorsIdx=[], anchorWeights=[], *, defaultWeight=1.0):
+    (I, J, V, _) = getLaplacianMeshUpperIdxs(context, mesh, True);
+    #Now fill in the anchors and finish making the Laplacian matrix
+    N = len(mesh.data.vertices);
+    K = len(anchorsIdx);
+    for i in range(K):
+        I.append(N+i);
+        J.append(anchorsIdx[i]);
+        V.append(1.0);
+    [I, J, V] = [np.array(I), np.array(J), np.array(V)];
+    L = spsp.coo_matrix((V, (I, J)), shape=(N+K, N)).tocsr();
+    return L;
+
+def getLaplacianMeshNormalized(context, mesh, cotangent = False):
+    (I, J, V, weights) = getLaplacianMeshUpperIdxs(context, mesh, cotangent);
+    N = len(mesh.data.vertices);
+    L = spsp.coo_matrix((V, (I, J)), shape=(N, N)).tocsr();
+    weights = np.array(weights)[:, None];
+    weights[weights == 0] = 1;
+    L = L/weights;
+    return L;
 
 def getFaceCotangent(v1, v2, f, mesh):
     if not f:
@@ -213,31 +239,6 @@ def getLaplacianMatrixUmbrella(context, mesh, anchorsIdx=[]):
     L = spsp.coo_matrix((V, (I, J)), shape=(N+K, N)).tocsr();
     return L;
 
-def getWKSLaplacianMatrixCotangent(context, mesh):
-    vertices = getMeshVPos(mesh);
-    faces = getMeshFaces(mesh);
-    angles = getMeshFaceAngles(mesh);
-    num_vertices = vertices.shape[0];    
-    cot_angles = 1.0 / np.tan(angles);
-    L = spsp.csr_matrix((num_vertices, num_vertices), dtype=np.double);
-    for i in range(1,4):
-        i1 = (i-1) % 3;
-        i2 = (i) % 3;
-        i3 = (i+1) % 3;
-        v = -1.0 / np.tan(angles[:, i3]);
-        i = faces[:,i1];
-        j = faces[:,i2];
-        add_mat = spsp.csr_matrix((v, (i, j)), shape=(num_vertices, num_vertices), dtype=np.double);
-        L = L + add_mat;
-        
-    L = 0.5 * (L + L.T);
-    diagonals = -np.sum(L,1).reshape(num_vertices, );
-    D = spsp.dia_matrix((diagonals, [0]), shape=(num_vertices, num_vertices), dtype=np.double);
-    L = D + L;    
-    return L;
-        
-    
-
 #Purpose: To return a sparse matrix representing a laplacian matrix with
 #cotangent weights in the upper square part and anchors as the lower rows
 #Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)
@@ -265,8 +266,85 @@ def getLaplacianMeshNormalized(context, mesh, cotangent = False):
     L = L/weights;
     return L;
 
+def angle(e1,e2):
+    return np.arccos((e1*e2).sum(axis=1)/(np.linalg.norm(e1,axis=1)*np.linalg.norm(e2,axis=1)));
 
-def getMeshVoronoiAreas(context, mesh):
+
+#Sparse matrix of weights for each vertex to its neighbours
+def get_matC(context, mesh):
+    ver = getMeshVPos(mesh);
+    tri = getMeshFaces(mesh);
+    
+    v1 = ver[tri[:,0],:]
+    v2 = ver[tri[:,1],:]
+    v3 = ver[tri[:,2],:]        
+    e1 = v2-v1
+    e2 = v3-v2
+    e3 = v1-v3  
+    
+    hcot_12 = 0.5/np.tan(angle(-e2,e3))
+    hcot_13 = 0.5/np.tan(angle(-e1,e2))
+    hcot_23 = 0.5/np.tan(angle(-e3,e1))
+    
+    data = np.array([hcot_12,hcot_23,hcot_13]).flatten()
+    row_ind = np.array([tri[:,0],tri[:,1],tri[:,2]]).flatten()
+    col_ind = np.array([tri[:,1],tri[:,2],tri[:,0]]).flatten()
+    M = N = ver.shape[0]
+    matC = spsp.csr_matrix((data,(row_ind,col_ind)),shape=(M,N))
+    matC = matC + matC.T
+    dia = -matC.sum(axis=1).A.flatten()
+    matC = matC + spsp.dia_matrix((dia,0), shape=(M,N))
+    
+    return matC;
+
+#Sparse matrix of weights for each vertex to its neighbours
+def get_matC2(context, mesh):
+    vertices = getMeshVPos(mesh);
+    faces = getMeshFaces(mesh);
+    angles = getMeshFaceAngles(mesh);
+    num_vertices = vertices.shape[0];    
+    cot_angles = 1.0 / np.tan(angles);
+    L = spsp.csr_matrix((num_vertices, num_vertices), dtype=np.double);
+    for i in range(1,4):
+        i1 = (i-1) % 3;
+        i2 = (i) % 3;
+        i3 = (i+1) % 3;
+        v = -1.0 / np.tan(angles[:, i3]);
+        i = faces[:,i1];
+        j = faces[:,i2];
+        add_mat = spsp.csr_matrix((v, (i, j)), shape=(num_vertices, num_vertices), dtype=np.double);
+        L = L + add_mat;
+        
+    L = 0.5 * (L + L.T);
+    diagonals = -np.sum(L,1).reshape(num_vertices, );
+    D = spsp.dia_matrix((diagonals, [0]), shape=(num_vertices, num_vertices), dtype=np.double);
+    L = D + L;    
+    return L;
+
+#Matrix M is always a diagonal matrix that is used for AX=b (example eigen decomposition_
+def get_matM(context, mesh):
+    ver = getMeshVPos(mesh);
+    tri = getMeshFaces(mesh);
+    
+    v1 = ver[tri[:,0],:]
+    v2 = ver[tri[:,1],:]
+    v3 = ver[tri[:,2],:]        
+    e1 = v2-v1
+    e3 = v1-v3    
+    
+    norm_l = np.cross(e1,-e3,axis=1)
+    norm_mag = np.linalg.norm(norm_l,axis=1)
+#    norm_1 = norm_l/norm_mag[:,None]
+    area = norm_mag/2
+    
+    data = (area/3).repeat(3)
+    row_ind = col_ind = tri.flatten()
+    M = N = ver.shape[0]
+    matM = spsp.csr_matrix((data,(row_ind,col_ind)),shape=(M,N))
+    return matM, matM;
+
+#Matrix M is always a diagonal matrix that is used for AX=b (example eigen decomposition_
+def get_matM2(context, mesh):
     def col(d, key):
         val = d[key];
         d[key] += 1;
@@ -354,6 +432,41 @@ def getMeshVoronoiAreas(context, mesh):
     print('FINISHING WITH AREA COMPUTATION FINALIZATION');
 #     sio.savemat(bpy.path.abspath('//matlab/%s.mat'%(mesh.name)), {'vertices':vertices, 'faces':faces+1});
     return Am, A;
+
+def get_eigen(matM,matC,n):
+    eva, eve = eigsh(matC,k=n,M=matM,sigma=-1e-8,which='LM');
+    print('SHAPE OF EIGENS :: %s, %s'%(eva.shape, eve.shape));
+    return eva,eve
+
+def get_eigen2(matM, matC, n):
+    num_vertices = matC.shape[0];
+    #Calculate the eigen values and vectors
+#     eva, eve = eigs(L,k=K,M=A,sigma=-1e-5,which='LM');
+    eva, eve = eigsh(matC,k=n,M=matM,sigma=-1e-8,which='LM');
+    #Sort the eigen values from smallest to highest
+    # and ensure to use the real part of eigen values, because there might be complex numbers
+    eva = np.abs(np.real(eva));
+    idx = np.argsort(eva);
+    eva = eva[idx];
+    eve = eve[:, idx];    
+    eve = np.real(eve);
+    print('SHAPE OF EIGENS :: %s, %s'%(eva.shape, eve.shape));
+    return eva, eve;
+
+def getWKSLaplacianMatrixCotangent(context, mesh, model=2):
+    if(model == 1):
+        return get_matC(context, mesh);
+    return get_matC2(context, mesh);
+
+def getMeshVoronoiAreas(context, mesh, model=2):
+    if(model == 1):
+        return get_matM(context, mesh);
+    return get_matM2(context, mesh);
+
+def getWKSEigens(mesh, L, A, K=3, model=1):
+    if(model == 1):
+        return get_eigen(A, L, K);    
+    return get_eigen2(A, L, K);
 
 def getMeshVoronoiAreasSlow(context, mesh):
     vertices = getMeshVPos(mesh);
