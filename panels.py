@@ -48,6 +48,7 @@ class HKSPanel(bpy.types.Panel):
             box.label('HKS');
             row = box.row();       
             row.prop(context.active_object, 'hks_t');
+            row.prop(context.active_object, 'hks_current_t');
             row.prop(context.active_object, 'live_hks');
             row = box.row();
             row.operator(SpectralHKS.bl_idname);
@@ -68,6 +69,7 @@ class WKSPanel(bpy.types.Panel):
             row = box.row();       
             row.prop(context.active_object, 'wks_e');
             row.prop(context.active_object, 'wks_variance');
+            row.prop(context.active_object, 'wks_current_e');
             row.prop(context.active_object, 'live_wks');
             row = box.row();
             row.operator(SpectralWKS.bl_idname);

@@ -73,7 +73,7 @@ class SpectralHKS(bpy.types.Operator):
             mesh = context.active_object;
             
         if(mesh is not None):
-            heat_colors, k = getHKSColors(context, mesh, mesh.eigen_k, mesh.hks_t);
+            heat_colors, k = getHKSColors(context, mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t);
             applyColoringForMeshErrors(context, mesh, heat_colors, v_group_name='hks', use_weights=False);
                 
         return{'FINISHED'};
@@ -96,7 +96,7 @@ class SpectralWKS(bpy.types.Operator):
             mesh = context.active_object;
             
         if(mesh is not None):
-            wks_colors, k = getWKSColors(context, mesh, mesh.eigen_k, mesh.wks_e, mesh.wks_variance);
+            wks_colors, k = getWKSColors(context, mesh, mesh.eigen_k, mesh.wks_e, mesh.wks_current_e, mesh.wks_variance);
             applyColoringForMeshErrors(context, mesh, wks_colors, v_group_name='wks', use_weights=False);
                 
         return{'FINISHED'};
