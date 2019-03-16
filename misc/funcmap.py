@@ -14,6 +14,26 @@ from GenericMarkerCreator.misc.mathandmatrices import getWKSEigens, getWKSLaplac
 from GenericMarkerCreator.misc.mathandmatrices import getMeshFaces, getMeshVPos;
 from GenericMarkerCreator.misc.spectralmagic import get_hks, get_wks, getMatrixCache, setMatrixCache;
 
+class FunctionalMapResult():
+    #The parameters are 
+    # evecS = original eigenvectors of Source;
+    # evecT = original eigenvectors of Target;
+    # evecSMapped = transformed eigenvectors of Source after finding FunctionalMap C
+    # C - The functional map itself
+    # mode - The mode (wks or hks) used for finding the coeffs used in finding the functional maps
+    # coeffS - The coefficeints of Source calculated based on the mode selected
+    # coeffT - The coefficeints of Target calculated based on the mode selected
+    def __init__(self, evecS, evecT, evecSMapped, C, mode, coeffS, coeffT):
+        self.eivecS = evecS;
+        self.eivecT = evecT;
+        self.eivecSMapped = evecSMapped;
+        self.C = C;
+        self.mode = mode;
+        self.coeffsS = coeffS;
+        self.coeffsT = coeffT;
+    
+    def getDictionary(self):
+
 def get_coef(eivec, matM, coefficients):
     coef = eivec.T.dot(matM.dot(coefficients));
     return coef;
@@ -60,7 +80,7 @@ def extract_mapping_original(F, evecs_from, evecs_to):
     dists, others = bt_.query(evecs_to)
     return others.flatten()
 
-def funcmap_correspondences(context, source, target, n_eigen=30, spectral_steps=100):    
+def funcmap_correspondences(context, source, target, n_eigen=30, spectral_steps=100, coeffsmode='wks'):    
 #     verS, verT, triS, triT = getMeshVPos(source), getMeshVPos(target), getMeshFaces(source), getMeshFaces(target);
     
     n_eigen = min(len(source.data.vertices)-1, len(target.data.vertices)-1, n_eigen);
@@ -102,24 +122,23 @@ def funcmap_correspondences(context, source, target, n_eigen=30, spectral_steps=
 #     eivecT = eivecT[:,:-1]
     
     #%% 2. Function Representation (HKS & WKS) & its Coefficient
-    hksS = get_hks(eivalS, eivecS, matMS, spectral_steps);
-    hksT = get_hks(eivalT, eivecT, matMT, spectral_steps);
-    wksS = get_wks(eivalS, eivecS, num_steps=spectral_steps);
-    wksT = get_wks(eivalT, eivecT, num_steps=spectral_steps);
+    if(coeffsmode == 'hks'):
+        hksS = get_hks(eivalS, eivecS, matMS, spectral_steps);
+        hksT = get_hks(eivalT, eivecT, matMT, spectral_steps);
+        coefS = get_coef(eivecS, matMS, hksS);
+        coefT = get_coef(eivecT, matMT, hksT);
+    elif (coeffsmode=='wks'):
+        wksS = get_wks(eivalS, eivecS, num_steps=spectral_steps);
+        wksT = get_wks(eivalT, eivecT, num_steps=spectral_steps);
+        coefS = get_coef(eivecS, matMS, wksS);
+        coefT = get_coef(eivecT, matMT, wksT);
     
-    #Experimental
-    hksS = getMeshVPos(source);
-    hksT = getMeshVPos(target);
+    else:
+        raise NotImplementedError('The mode %s not known and has not been implemented');
     
-     
-    coefhS = get_coef(eivecS, matMS, hksS);
-    coefhT = get_coef(eivecT, matMT, hksT);
-#     coefwS = get_coef(eivecS, matMS, wksS);
-#     coefwT = get_coef(eivecT, matMT, wksT);
-    
-    funcMap = get_funcMap(coefhS, coefhT, eivalS, eivalT);
+    funcMap = get_funcMap(coefS, coefT, eivalS, eivalT);
     eivecS_mapped = (funcMap.dot(eivecS.T)).T;
     
-    return eivecS_mapped, funcMap;
+    return FunctionalMapResult(eivecS, eivecT, eivecS_mapped, funcMap, coeffsmode, coefS, coefT);
     
     
