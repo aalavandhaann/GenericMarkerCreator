@@ -23,14 +23,16 @@ from GenericMarkerCreator.misc.mathandmatrices import getDuplicatedObject;
 from GenericMarkerCreator.misc.mathandmatrices import setMeshVPOS;
 from GenericMarkerCreator.misc.TrimeshCurvatures import need_curvatures;
 from GenericMarkerCreator.misc.mathandmatrices import getMeshFaces;
+from GenericMarkerCreator.misc.staticutilities import addConstraint, getBlenderMarker, detectMorN;
 
-from GenericMarkerCreator.misc.staticutilities import addConstraint, getBlenderMarker;
-
-def getGISIFColorsInner(context, mesh):
+def getGISIFColorsInner(context, mesh, applyMesh=None):    
+    use_mesh = mesh;
+    if(applyMesh):
+        use_mesh = applyMesh;
     if(mesh.linear_gisif_combinations):
-        gisif_colors, k, gisif_name = getGISIFColors(context, mesh, mesh.eigen_k, mesh.gisif_threshold, mesh.gisif_group_index, linear_gisif_iterations=mesh.linear_gisif_n);
+        gisif_colors, k, gisif_name = getGISIFColors(context, use_mesh, mesh.eigen_k, mesh.gisif_threshold, mesh.gisif_group_index, linear_gisif_iterations=mesh.linear_gisif_n);
     else:
-        gisif_colors, k, gisif_name = getGISIFColors(context, mesh, mesh.eigen_k, mesh.gisif_threshold, mesh.gisif_group_index);
+        gisif_colors, k, gisif_name = getGISIFColors(context, use_mesh, mesh.eigen_k, mesh.gisif_threshold, mesh.gisif_group_index);
     
     return gisif_colors, k , gisif_name;
 
@@ -72,9 +74,16 @@ class SpectralHKS(bpy.types.Operator):
         except:
             mesh = context.active_object;
             
-        if(mesh is not None):
+        if(mesh is not None):            
             heat_colors, k = getHKSColors(context, mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t);
             applyColoringForMeshErrors(context, mesh, heat_colors, v_group_name='hks', use_weights=False);
+            
+            if(mesh.spectral_sync):
+                paired_mesh = detectMorN(mesh);
+                if(paired_mesh):
+                    heat_colors, k = getHKSColors(context, paired_mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t);
+                    applyColoringForMeshErrors(context, paired_mesh, heat_colors, v_group_name='hks', use_weights=False);
+                
                 
         return{'FINISHED'};
 
@@ -98,6 +107,12 @@ class SpectralWKS(bpy.types.Operator):
         if(mesh is not None):
             wks_colors, k = getWKSColors(context, mesh, mesh.eigen_k, mesh.wks_e, mesh.wks_current_e, mesh.wks_variance);
             applyColoringForMeshErrors(context, mesh, wks_colors, v_group_name='wks', use_weights=False);
+            
+            if(mesh.spectral_sync):
+                paired_mesh = detectMorN(mesh);
+                if(paired_mesh):
+                    wks_colors, k = getWKSColors(context, paired_mesh, mesh.eigen_k, mesh.wks_e, mesh.wks_current_e, mesh.wks_variance);
+                    applyColoringForMeshErrors(context, paired_mesh, wks_colors, v_group_name='wks', use_weights=False);
                 
         return{'FINISHED'};
 
@@ -122,6 +137,7 @@ class SpectralGISIF(bpy.types.Operator):
             gisif_colors, k, gisif_name = getGISIFColorsInner(context, mesh);
             mesh.gisif_group_name = gisif_name;
             mesh.gisif_signatures.clear();
+            
             if(not mesh.gisif_symmetries or not len(mesh.generic_landmarks)):
                 normalized_gisifs = np.interp(gisif_colors, (gisif_colors.min(), gisif_colors.max()), (0.0,1.0));                
             else:
@@ -139,8 +155,17 @@ class SpectralGISIF(bpy.types.Operator):
                     normalized_gisifs = gisif_colors / np.sqrt(np.sum(gisif_colors**2));                    
                     delta_gisif_colors = np.sqrt((normalized_gisifs[o_vid] - normalized_gisifs)**2);                    
                     normalized_gisifs = np.interp(delta_gisif_colors, (delta_gisif_colors.min(), delta_gisif_colors.max()), (0.0,1.0));            
+            
             applyColoringForMeshErrors(context, mesh, normalized_gisifs, v_group_name='gisif', use_weights=False, A=np.min(normalized_gisifs), B=np.max(normalized_gisifs));
-                
+            
+            if(mesh.spectral_sync):
+                paired_mesh = detectMorN(mesh);
+                if(paired_mesh):
+                    gisif_colors, k, gisif_name = getGISIFColorsInner(context, mesh, applyMesh=paired_mesh);
+                    paired_mesh.gisif_group_name = gisif_name;
+                    normalized_gisifs = np.interp(gisif_colors, (gisif_colors.min(), gisif_colors.max()), (0.0,1.0)); 
+                    applyColoringForMeshErrors(context, paired_mesh, normalized_gisifs, v_group_name='gisif', use_weights=False, A=np.min(normalized_gisifs), B=np.max(normalized_gisifs));
+            
         return{'FINISHED'};
 
 #The operators for creating landmarks
@@ -165,7 +190,7 @@ class SpectralFeatures(bpy.types.Operator):
             normalized_gisifs = np.sum(data, axis=1);   
             normalized_gisifs = np.interp(normalized_gisifs, (normalized_gisifs.min(), normalized_gisifs.max()), (0.0,1.0));    
             applyColoringForMeshErrors(context, mesh, normalized_gisifs, v_group_name='features', use_weights=False, A=np.min(normalized_gisifs), B=np.max(normalized_gisifs));
-                
+            
         return{'FINISHED'};
 
 
@@ -201,8 +226,20 @@ class SpectralShape(bpy.types.Operator):
     bl_region_type = "UI";
     bl_context = "objectmode";
     currentobject = bpy.props.StringProperty(name="Initialize for Object", default = "--");
-     
-        
+    
+    def applySpectralShape(self, context, mesh, eigen_k=5):
+        try:
+            dup_mesh = context.scene.objects["%s-spectral-shape"%(mesh.name)];
+        except KeyError:
+            dup_mesh = getDuplicatedObject(context, mesh, meshname="%s-spectral-shape"%(mesh.name));
+            bpy.ops.object.select_all(action="DESELECT");
+            context.scene.objects.active = mesh;
+            mesh.select = True;
+            
+        vpos = doLowpassFiltering(context, mesh, eigen_k);
+        setMeshVPOS(dup_mesh, vpos);
+         
+    
     def execute(self, context):
         try:            
             mesh = bpy.data.objects[self.currentobject];
@@ -210,15 +247,11 @@ class SpectralShape(bpy.types.Operator):
             mesh = context.active_object;
             
         if(mesh is not None):
-            try:
-                dup_mesh = context.scene.objects["%s-spectral-shape"%(mesh.name)];
-            except KeyError:
-                dup_mesh = getDuplicatedObject(context, mesh, meshname="%s-spectral-shape"%(mesh.name));
-                bpy.ops.object.select_all(action="DESELECT");
-                context.scene.objects.active = mesh;
-                mesh.select = True;
-            vpos = doLowpassFiltering(context, mesh, mesh.eigen_k);
-            setMeshVPOS(dup_mesh, vpos);
+            self.applySpectralShape(context, mesh, mesh.eigen_k);
+            if(mesh.spectral_sync):
+                paired_mesh = detectMorN(mesh);
+                if(paired_mesh):
+                    self.applySpectralShape(context, paired_mesh, mesh.eigen_k);
                 
         return{'FINISHED'};
 

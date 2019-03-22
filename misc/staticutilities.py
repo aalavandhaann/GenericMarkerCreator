@@ -57,6 +57,19 @@ def applyMarkerColor(marker):
     marker.data.materials.clear();
     marker.data.materials.append(material);
 
+def detectMorN(mesh):
+    M, N = detectMN(mesh);
+    
+    if(M and N):
+#         print(M.name, N.name, mesh.name)
+        if(mesh.name == M.name):
+#             print('RETURN : ', N.name);
+            return N;
+#         print('RETURN : ', M.name);
+        return M;
+    
+    return None;
+
 def detectMN(mesh):
     M = None;
     N = None;

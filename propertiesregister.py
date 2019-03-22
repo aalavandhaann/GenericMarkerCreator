@@ -7,16 +7,17 @@ from GenericMarkerCreator.misc.staticutilities import getMarkerOwner, getGeneric
 #From the register routine.
 
 def updateSpectralProperty(self, context):
-    if(context.active_object.spectral_soft_update):
+#     print('WHO AM I : ', self);
+    if(self.spectral_soft_update):
         return;
-    if(context.active_object.live_hks):
-        bpy.ops.genericlandmarks.spectralhks('EXEC_DEFAULT', currentobject=context.active_object.name);
-    elif(context.active_object.live_wks):
-        bpy.ops.genericlandmarks.spectralwks('EXEC_DEFAULT', currentobject=context.active_object.name);
-    elif(context.active_object.live_spectral_shape):
-        bpy.ops.genericlandmarks.spectralshape('EXEC_DEFAULT', currentobject=context.active_object.name);
-    elif(context.active_object.live_gisif):
-        bpy.ops.genericlandmarks.spectralgisif('EXEC_DEFAULT', currentobject=context.active_object.name);
+    if(self.live_hks):
+        bpy.ops.genericlandmarks.spectralhks('EXEC_DEFAULT', currentobject=self.name);
+    elif(self.live_wks):
+        bpy.ops.genericlandmarks.spectralwks('EXEC_DEFAULT', currentobject=self.name);
+    elif(self.live_spectral_shape):
+        bpy.ops.genericlandmarks.spectralshape('EXEC_DEFAULT', currentobject=self.name);
+    elif(self.live_gisif):
+        bpy.ops.genericlandmarks.spectralgisif('EXEC_DEFAULT', currentobject=self.name);
         
 def updateNormalMarkerColor(self, context):
     changeMarkerColor(context.active_object);
@@ -141,6 +142,9 @@ def register():
     
     bpy.types.Object.spectral_soft_update = bpy.props.BoolProperty(name='Spectral Soft', description="flag to avoid update methods for spectral to run", default=False);
     bpy.types.Object.eigen_k = bpy.props.IntProperty(name="Eigen K", description="Number of Eigen Ranks to solve", default=5, min=1, step=1, update=updateSpectralProperty);
+    bpy.types.Object.spectral_sync = bpy.props.BoolProperty(name='Spectral Sync', description="flag to sync spectral properties with paired mesh", default=False);
+    
+    
     bpy.types.Object.hks_t = bpy.props.FloatProperty(name="HKS Time", description="The time for which the heat dissipation for every point is calculated", default=20.0, min=0.1, update=updateSpectralProperty);
     bpy.types.Object.hks_current_t = bpy.props.IntProperty(name="HKS Current Time", description="The current time of heat dissipation", default=20, min=0, update=updateSpectralProperty);
     
