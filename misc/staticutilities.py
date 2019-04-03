@@ -637,7 +637,7 @@ def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B
     
 
 def exportMeshColors(context, mesh, vertex_colors_name, base_location, exportname,*, retain_location=False):
-    filepath = bpy.path.abspath(base_location + "/"+exportname+".ply");                 
+    filepath = bpy.path.abspath(base_location + "/"+exportname+".ply");
     bpy.ops.object.select_all(action="DESELECT");
     
     mesh.data.vertex_colors.active = mesh.data.vertex_colors[vertex_colors_name];

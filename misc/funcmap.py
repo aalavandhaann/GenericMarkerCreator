@@ -32,7 +32,7 @@ class FunctionalMapResult():
         self.coeffsS = coeffS;
         self.coeffsT = coeffT;
     
-    def getDictionary(self):
+#     def getDictionary(self):
 
 def get_coef(eivec, matM, coefficients):
     coef = eivec.T.dot(matM.dot(coefficients));
