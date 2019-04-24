@@ -3,7 +3,7 @@ import sys;
 import time;
 
 from scipy.io import loadmat
-from scipy.sparse import csr_matrix, dia_matrix
+from scipy.sparse import csr_matrix, dia_matrix, identity;
 from scipy.sparse.linalg import eigsh, inv
 import numpy as np
 from numpy import cross, arccos, array
@@ -23,7 +23,7 @@ class FunctionalMapResult():
     # mode - The mode (wks or hks) used for finding the coeffs used in finding the functional maps
     # coeffS - The coefficeints of Source calculated based on the mode selected
     # coeffT - The coefficeints of Target calculated based on the mode selected
-    def __init__(self, evecS, evecT, evecSMapped, C, mode, coeffS, coeffT):
+    def __init__(self, evecS, evecT, evecSMapped, C, mode, coeffS, coeffT, basisS, basisT):
         self.eivecS = evecS;
         self.eivecT = evecT;
         self.eivecSMapped = evecSMapped;
@@ -31,8 +31,8 @@ class FunctionalMapResult():
         self.mode = mode;
         self.coeffsS = coeffS;
         self.coeffsT = coeffT;
-    
-    def getDictionary(self):
+        self.basisS = basisS;
+        self.basisT = basisT;
 
 def get_coef(eivec, matM, coefficients):
     coef = eivec.T.dot(matM.dot(coefficients));
@@ -123,22 +123,27 @@ def funcmap_correspondences(context, source, target, n_eigen=30, spectral_steps=
     
     #%% 2. Function Representation (HKS & WKS) & its Coefficient
     if(coeffsmode == 'hks'):
-        hksS = get_hks(eivalS, eivecS, matMS, spectral_steps);
-        hksT = get_hks(eivalT, eivecT, matMT, spectral_steps);
-        coefS = get_coef(eivecS, matMS, hksS);
-        coefT = get_coef(eivecT, matMT, hksT);
+        basisS = get_hks(eivalS, eivecS, matMS, spectral_steps);
+        basisT = get_hks(eivalT, eivecT, matMT, spectral_steps);
+        coefS = get_coef(eivecS, matMS, basisS);
+        coefT = get_coef(eivecT, matMT, basisT);
     elif (coeffsmode=='wks'):
-        wksS = get_wks(eivalS, eivecS, num_steps=spectral_steps);
-        wksT = get_wks(eivalT, eivecT, num_steps=spectral_steps);
-        coefS = get_coef(eivecS, matMS, wksS);
-        coefT = get_coef(eivecT, matMT, wksT);
-    
+        basisS = get_wks(eivalS, eivecS, num_steps=spectral_steps);
+        basisT = get_wks(eivalT, eivecT, num_steps=spectral_steps);
+        coefS = get_coef(eivecS, matMS, basisS);
+        coefT = get_coef(eivecT, matMT, basisT);
+    elif(coeffsmode == 'p2p'):
+        assert len(source.data.vertices) == len(target.data.vertices);
+        basisS = identity(len(source.data.vertices), dtype=np.float);
+        basisT = identity(len(target.data.vertices), dtype=np.float);
+        coefS = get_coef(eivecS, matMS, basisS);
+        coefT = get_coef(eivecT, matMT, basisT);
     else:
         raise NotImplementedError('The mode %s not known and has not been implemented');
     
     funcMap = get_funcMap(coefS, coefT, eivalS, eivalT);
     eivecS_mapped = (funcMap.dot(eivecS.T)).T;
     
-    return FunctionalMapResult(eivecS, eivecT, eivecS_mapped, funcMap, coeffsmode, coefS, coefT);
+    return FunctionalMapResult(eivecS, eivecT, eivecS_mapped, funcMap, coeffsmode, coefS, coefT, basisS, basisT);
     
     

@@ -4,9 +4,6 @@ from subprocess import Popen, PIPE;
 import zipfile;
 from platform import platform
 
-
-print(sys.argv);
-
 BLENDER_ADDON_PREFIX = os.path.abspath(sys.argv[3].strip());
 BLENDER_VERSION = sys.argv[4].strip();
 BLENDER_ADDON_LOCATION = "%s/%s/scripts/addons/"%(BLENDER_ADDON_PREFIX,BLENDER_VERSION);
