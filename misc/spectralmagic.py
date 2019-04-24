@@ -58,7 +58,6 @@ def getLaplacianSpectrum(context, mesh, K):
 #Returns: Nothing (should update mesh.VPos)
 def doLowpassFiltering(context, mesh, K):
     (_, U) = getLaplacianSpectrum(context, mesh, K);
-    print(U.shape);
     return U.dot(U.T.dot(getMeshVPos(mesh)));
     
 #Purpose: Given a mesh, to simulate heat flow by projecting initial conditions

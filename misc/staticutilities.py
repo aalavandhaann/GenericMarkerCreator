@@ -57,6 +57,19 @@ def applyMarkerColor(marker):
     marker.data.materials.clear();
     marker.data.materials.append(material);
 
+def detectMorN(mesh):
+    M, N = detectMN(mesh);
+    
+    if(M and N):
+#         print(M.name, N.name, mesh.name)
+        if(mesh.name == M.name):
+#             print('RETURN : ', N.name);
+            return N;
+#         print('RETURN : ', M.name);
+        return M;
+    
+    return None;
+
 def detectMN(mesh):
     M = None;
     N = None;
@@ -624,7 +637,7 @@ def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B
     
 
 def exportMeshColors(context, mesh, vertex_colors_name, base_location, exportname,*, retain_location=False):
-    filepath = bpy.path.abspath(base_location + "/"+exportname+".ply");                 
+    filepath = bpy.path.abspath(base_location + "/"+exportname+".ply");
     bpy.ops.object.select_all(action="DESELECT");
     
     mesh.data.vertex_colors.active = mesh.data.vertex_colors[vertex_colors_name];

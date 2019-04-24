@@ -20,6 +20,10 @@ class SpectralGeneralPanel(bpy.types.Panel):
             layout = self.layout;
             mainbox = layout.box();
             mainbox.label('Spectral Properties');
+            
+            row = mainbox.row();
+            row.prop(context.active_object, 'spectral_sync');
+            
             row = mainbox.row();
             row.prop(context.active_object, 'eigen_k');
             
@@ -27,7 +31,7 @@ class SpectralGeneralPanel(bpy.types.Panel):
             box.label('Low Pass Filtering (Eigen Shapes)')
             row = box.row();
             row.prop(context.active_object, 'live_spectral_shape');
-            row.operator(SpectralShape.bl_idname);
+            row.operator(SpectralShape.bl_idname);           
             
             row = box.row();
             row.operator(SpectralFeatures.bl_idname);
