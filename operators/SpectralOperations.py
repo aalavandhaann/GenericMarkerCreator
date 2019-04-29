@@ -226,6 +226,7 @@ class SpectralShape(bpy.types.Operator):
     bl_region_type = "UI";
     bl_context = "objectmode";
     currentobject = bpy.props.StringProperty(name="Initialize for Object", default = "--");
+    use_eigen_k = bpy.props.IntProperty(name="Initialize for Object", default = -1);
     
     def applySpectralShape(self, context, mesh, eigen_k=5):
         try:
@@ -245,13 +246,16 @@ class SpectralShape(bpy.types.Operator):
             mesh = bpy.data.objects[self.currentobject];
         except:
             mesh = context.active_object;
-            
+        
         if(mesh is not None):
-            self.applySpectralShape(context, mesh, mesh.eigen_k);
-            if(mesh.spectral_sync):
-                paired_mesh = detectMorN(mesh);
-                if(paired_mesh):
-                    self.applySpectralShape(context, paired_mesh, mesh.eigen_k);
+            if(self.use_eigen_k != -1):
+                self.applySpectralShape(context, mesh, self.use_eigen_k);
+            else:
+                self.applySpectralShape(context, mesh, mesh.eigen_k);
+                if(mesh.spectral_sync):
+                    paired_mesh = detectMorN(mesh);
+                    if(paired_mesh):
+                        self.applySpectralShape(context, paired_mesh, mesh.eigen_k);
                 
         return{'FINISHED'};
 
