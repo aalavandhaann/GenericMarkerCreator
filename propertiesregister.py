@@ -4,7 +4,7 @@ from mathutils.bvhtree import BVHTree;
 
 from GenericMarkerCreator.misc.staticutilities import getMarkerOwner, getGenericLandmark;
 from GenericMarkerCreator.misc.meshmathutils import getBarycentricCoordinateFromPolygonFace, getGeneralCartesianFromBarycentre;
-from GenericMarkerCreator.misc.mathandmatrices import getDuplicatedObject;
+from GenericMarkerCreator.misc.mathandmatrices import getDuplicatedObject, getMeshVPos;
 
 #To enable edit/removal button in the custom properties panel of Blender
 #its necessary to remove the property assignment to entities such as scene, object etc,
@@ -170,7 +170,7 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                 if(mapped_point.is_valid):
                     co = getGeneralCartesianFromBarycentre(mapped_point.bary_ratios, [map_to.data.vertices[m_vid].co for m_vid in mapped_point.bary_indices]);
                     apply_on_mesh.data.vertices[vid].co = co;
-            return apply_on_mesh;
+            return apply_on_mesh, getMeshVPos(apply_on_mesh);
         
         except KeyError:
             print('MAP TO MESH NEEDS TO BE SET BEFORE CONSTRUCTING A MAPPING');
