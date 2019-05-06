@@ -56,9 +56,13 @@ def getLaplacianSpectrum(context, mesh, K):
 #to perform a lowpass filtering
 #Inputs: mesh (polygon mesh object), K (number of eigenvalues/eigenvectors)
 #Returns: Nothing (should update mesh.VPos)
-def doLowpassFiltering(context, mesh, K):
+def doLowpassFiltering(context, mesh, K, *, a_matrix=False):
     (_, U) = getLaplacianSpectrum(context, mesh, K);
-    return U.dot(U.T.dot(getMeshVPos(mesh)));
+    if(not a_matrix):
+        return U.dot(U.T.dot(getMeshVPos(mesh)));
+    UMatrix = spsp.csr_matrix(U);
+    UdotUT = spsp.csr_matrix(UMatrix.dot(UMatrix.T));
+    return U.dot(U.T.dot(getMeshVPos(mesh))), UdotUT;
     
 #Purpose: Given a mesh, to simulate heat flow by projecting initial conditions
 #onto the eigenvectors of the Laplacian matrix, and then to sum up the heat
