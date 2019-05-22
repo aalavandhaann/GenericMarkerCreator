@@ -33,7 +33,7 @@ if(platform.system() != 'Windows'):
 else:
     print('WINDOWS SYSTEM CANNOT BE SUPPORTED. SORRY!');
 
-
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap;
 
 
 def getConstraintsKD(context, mesh):
@@ -546,12 +546,14 @@ def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sor
 
 
 def getInterpolatedColorValues(error_values, A = None, B = None):
+    step_colors = [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]];
     norm = clrs.Normalize(vmin=A, vmax=B);    
     cmap = get_cmap('jet');
+    #cmap = ListedColormap(step_colors);
+#     cmap = get_cmap('Spectral');
     c = error_values;    
     final_weights = norm(c);
     final_colors = cmap(final_weights)[:, 0:3];
-    
     return final_colors, final_weights;
 
 def applyVertexWeights(context, mesh, weights,*, v_group_name = "lap_errors"):

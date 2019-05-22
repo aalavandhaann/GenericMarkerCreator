@@ -220,7 +220,7 @@ def need_curvatures(mesh):
     ensurelookuptable(bm);
     
     for v in bm.verts:
-        averagelength = sum([e.calc_length() for e in v.link_edges]) * (1.0 / len(v.link_edges)) * 0.4;
+        averagelength = sum([e.calc_length() for e in v.link_edges]) * (1.0 / len(v.link_edges));# * 0.4;
         k1, k2, p1, p2 = diagonalize_curv(pdir1[v.index], pdir2[v.index], curv1[v.index], curv12[v.index], curv2[v.index], normals[v.index]);        
         principalvalues.append(((k1+k2)*0.5,k1*k2 ,k1, k2, p1, p2));
         p1 = p1 * averagelength;
@@ -234,6 +234,8 @@ def need_curvatures(mesh):
         
         k1_list.append(o_values[indices_max]);
         k2_list.append(o_values[indices_min]);
+#         k1_list.append(k1);
+#         k2_list.append(k2);
         p1_list.append(p_values[indices_max]);
         p2_list.append(p_values[indices_min]);
         mean_list.append((k1+k2)*0.5);
@@ -242,7 +244,7 @@ def need_curvatures(mesh):
     
     bm.free();
     
-    return np.array(k1_list), np.array(k2_list), sx, np.array(p1_list), np.array(p2_list), mean_list, gaussian_list, normals_np;
+    return np.array(k1_list), np.array(k2_list), sx, np.array(p1_list), np.array(p2_list), np.array(mean_list), np.array(gaussian_list), normals_np;
 
 
 def diagonalize_curv(old_u, old_v, ku, kuv, kv, new_norm):

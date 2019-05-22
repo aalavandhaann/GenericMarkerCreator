@@ -322,7 +322,7 @@ def get_matC2(context, mesh):
     return L;
 
 #Matrix M is always a diagonal matrix that is used for AX=b (example eigen decomposition_
-def get_matM(context, mesh):
+def get_matM(context, mesh, ANormalize=False):
     ver = getMeshVPos(mesh);
     tri = getMeshFaces(mesh);
     
@@ -344,7 +344,7 @@ def get_matM(context, mesh):
     return matM, matM;
 
 #Matrix M is always a diagonal matrix that is used for AX=b (example eigen decomposition_
-def get_matM2(context, mesh):
+def get_matM2(context, mesh, ANormalize=True):
     def col(d, key):
         val = d[key];
         d[key] += 1;
@@ -373,7 +373,7 @@ def get_matM2(context, mesh):
     
     print('FINIDING INDICES OF VORONOI UNSAFE REGIONS ');
     #Voronoi safe triangles and their vertex ids
-    n_o_t_i = np.where(np.max(angles, axis=1) < 1.571)[0];        
+    n_o_t_i = np.where(np.max(angles, axis=1) < 1.571)[0];
     #Voronoi inappropriate vertices
     o_t_i = np.where(np.max(angles, axis=1) >= 1.571)[0];
     #vertex ids causing the obtuseness
@@ -425,10 +425,11 @@ def get_matM2(context, mesh):
     print('STARTING WITH AREA COMPUTATION FINALIZATION');
     
     A = np.maximum(A, 1e-8).reshape(A.shape[0], );
-    area = A.sum();
-    A = A / area;
+    if(ANormalize):
+        area = A.sum();
+        A = A / area;
     Am = spsp.dia_matrix((A, [0]), shape=(num_vertices, num_vertices));    
-    np.set_printoptions(precision=4, suppress=True);
+#     np.set_printoptions(precision=4, suppress=True);
     print('FINISHING WITH AREA COMPUTATION FINALIZATION');
 #     sio.savemat(bpy.path.abspath('//matlab/%s.mat'%(mesh.name)), {'vertices':vertices, 'faces':faces+1});
     return Am, A;
