@@ -545,16 +545,18 @@ def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sor
         print('FINISHED SAVING THE FILE');
 
 
-def getInterpolatedColorValues(error_values, A = None, B = None):
+def getInterpolatedColorValues(error_values, A = None, B = None, *, normalize=True):
     step_colors = [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]];
     norm = clrs.Normalize(vmin=A, vmax=B);    
-    cmap = get_cmap('jet');
-    #cmap = ListedColormap(step_colors);
+#     cmap = get_cmap('jet');
+    cmap = ListedColormap(step_colors);
 #     cmap = get_cmap('Spectral');
     c = error_values;    
     final_weights = norm(c);
     final_colors = cmap(final_weights)[:, 0:3];
-    return final_colors, final_weights;
+    if(normalize):
+        return final_colors, final_weights;
+    return final_colors, error_values;
 
 def applyVertexWeights(context, mesh, weights,*, v_group_name = "lap_errors"):
     if(None == mesh.vertex_groups.get(v_group_name)):
@@ -609,8 +611,8 @@ def applyVertexColors(context, mesh, colors,*, v_group_name = "lap_errors", for_
     
     return vertex_colors, material;
 
-def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors", use_weights=False): 
-    final_colors, final_weights = getInterpolatedColorValues(error_values, A, B);
+def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors", use_weights=False, normalize_weights=True): 
+    final_colors, final_weights = getInterpolatedColorValues(error_values, A, B, normalize=normalize_weights);
     
     colors = {};
     weights = {};
