@@ -548,8 +548,8 @@ def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sor
 def getInterpolatedColorValues(error_values, A = None, B = None, *, normalize=True):
     step_colors = [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]];
     norm = clrs.Normalize(vmin=A, vmax=B);    
-#     cmap = get_cmap('jet');
-    cmap = ListedColormap(step_colors);
+    cmap = get_cmap('jet');
+#     cmap = ListedColormap(step_colors);
 #     cmap = get_cmap('Spectral');
     c = error_values;    
     final_weights = norm(c);
@@ -575,6 +575,32 @@ def applyVertexWeights(context, mesh, weights,*, v_group_name = "lap_errors"):
     bm.free();
     
     return vertex_group;
+
+
+def getBinEdgeValue(N, hist, edges, fraction):
+    sum, partsum = int(N*fraction), 0;
+    i = 0;
+    for i, h_count in enumerate(hist):
+        partsum += h_count;
+        if(partsum >= sum):
+            break;
+    return edges[i+1];
+
+def getMinMax(data, histsize=10000):
+    N = data.shape[0];
+    hist, edges = np.histogram(data, bins=histsize);
+    min_, max_ = np.min(data), np.max(data);
+    threshold = histsize / 5;
+    maxcount = np.max(hist);
+    if(maxcount > threshold):
+        #sorted_data = np.sort(data);
+        Nby100 = N / 100;
+        left_index = int(Nby100);
+        right_index = N - left_index;
+        hist, edges = np.histogram(data, bins=histsize*50);
+        min_, max_ = getBinEdgeValue(N, hist, edges, 0.1), getBinEdgeValue(N, hist, edges, 0.9);
+    return min_, max_;
+
 
 def applyVertexColors(context, mesh, colors,*, v_group_name = "lap_errors", for_vertices = True):
     if(None == mesh.data.vertex_colors.get(v_group_name)):
@@ -611,7 +637,12 @@ def applyVertexColors(context, mesh, colors,*, v_group_name = "lap_errors", for_
     
     return vertex_colors, material;
 
-def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors", use_weights=False, normalize_weights=True): 
+def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors", use_weights=False, normalize_weights=True, use_histogram_preprocess=False): 
+    if(use_histogram_preprocess):
+        min_, max_ = getMinMax(error_values);
+        error_values[error_values <= min_] = min_;
+        error_values[error_values >= max_] = max_;
+    
     final_colors, final_weights = getInterpolatedColorValues(error_values, A, B, normalize=normalize_weights);
     
     colors = {};
@@ -641,7 +672,8 @@ def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B
     
 
 def exportMeshColors(context, mesh, vertex_colors_name, base_location, exportname,*, retain_location=False):
-    filepath = bpy.path.abspath(base_location + "/"+exportname+".ply");
+#     filepath = bpy.path.abspath(base_location + "/"+exportname+".ply");
+    filepath = os.path.join(base_location, exportname+".ply");
     bpy.ops.object.select_all(action="DESELECT");
     
     mesh.data.vertex_colors.active = mesh.data.vertex_colors[vertex_colors_name];
@@ -650,7 +682,7 @@ def exportMeshColors(context, mesh, vertex_colors_name, base_location, exportnam
     o_location = mesh.location.copy();
     if(not retain_location):
         mesh.location = (0,0,0);    
-    bpy.ops.export_mesh.ply(filepath=filepath, check_existing=False, axis_forward='-Z', axis_up='Y', filter_glob="*.ply", use_mesh_modifiers=True, use_normals=True, use_uv_coords=True, use_colors=True, global_scale=1.0);
+    bpy.ops.export_mesh.ply(filepath=filepath, check_existing=False, axis_forward='-Z', axis_up='Y', filter_glob="*.ply", use_mesh_modifiers=False, use_normals=False, use_uv_coords=False, use_colors=True, global_scale=1.0);
     mesh.location = o_location;
     bpy.ops.object.select_all(action="DESELECT");
 
