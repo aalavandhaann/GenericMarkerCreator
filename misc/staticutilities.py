@@ -548,7 +548,7 @@ def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sor
 def getInterpolatedColorValues(error_values, A = None, B = None, *, normalize=True):
     step_colors = [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]];
     norm = clrs.Normalize(vmin=A, vmax=B);    
-    cmap = get_cmap('jet');
+#     cmap = get_cmap('jet');
 #     cmap = ListedColormap(step_colors);
 #     cmap = get_cmap('Spectral');
     c = error_values;    
@@ -575,31 +575,6 @@ def applyVertexWeights(context, mesh, weights,*, v_group_name = "lap_errors"):
     bm.free();
     
     return vertex_group;
-
-
-def getBinEdgeValue(N, hist, edges, fraction):
-    sum, partsum = int(N*fraction), 0;
-    i = 0;
-    for i, h_count in enumerate(hist):
-        partsum += h_count;
-        if(partsum >= sum):
-            break;
-    return edges[i+1];
-
-def getMinMax(data, histsize=10000):
-    N = data.shape[0];
-    hist, edges = np.histogram(data, bins=histsize);
-    min_, max_ = np.min(data), np.max(data);
-    threshold = histsize / 5;
-    maxcount = np.max(hist);
-    if(maxcount > threshold):
-        #sorted_data = np.sort(data);
-        Nby100 = N / 100;
-        left_index = int(Nby100);
-        right_index = N - left_index;
-        hist, edges = np.histogram(data, bins=histsize*50);
-        min_, max_ = getBinEdgeValue(N, hist, edges, 0.1), getBinEdgeValue(N, hist, edges, 0.9);
-    return min_, max_;
 
 
 def applyVertexColors(context, mesh, colors,*, v_group_name = "lap_errors", for_vertices = True):
@@ -636,6 +611,30 @@ def applyVertexColors(context, mesh, colors,*, v_group_name = "lap_errors", for_
     material.use_vertex_color_paint = True;
     
     return vertex_colors, material;
+
+def getBinEdgeValue(N, hist, edges, fraction):
+    sum, partsum = int(N*fraction), 0;
+    i = 0;
+    for i, h_count in enumerate(hist):
+        partsum += h_count;
+        if(partsum >= sum):
+            break;
+    return edges[i+1];
+
+def getMinMax(data, histsize=10000):
+    N = data.shape[0];
+    hist, edges = np.histogram(data, bins=histsize);
+    min_, max_ = np.min(data), np.max(data);
+    threshold = histsize / 5;
+    maxcount = np.max(hist);
+    if(maxcount > threshold):
+        #sorted_data = np.sort(data);
+        Nby100 = N / 100;
+        left_index = int(Nby100);
+        right_index = N - left_index;
+        hist, edges = np.histogram(data, bins=histsize*50);
+        min_, max_ = getBinEdgeValue(N, hist, edges, 0.1), getBinEdgeValue(N, hist, edges, 0.9);
+    return min_, max_;
 
 def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors", use_weights=False, normalize_weights=True, use_histogram_preprocess=False): 
     if(use_histogram_preprocess):
