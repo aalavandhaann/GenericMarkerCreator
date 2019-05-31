@@ -548,7 +548,7 @@ def plotErrorGraph(context, reference, meshobject, algo_names, distances, *, sor
 def getInterpolatedColorValues(error_values, A = None, B = None, *, normalize=True):
     step_colors = [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]];
     norm = clrs.Normalize(vmin=A, vmax=B);    
-#     cmap = get_cmap('jet');
+    cmap = get_cmap('jet');
 #     cmap = ListedColormap(step_colors);
 #     cmap = get_cmap('Spectral');
     c = error_values;    
