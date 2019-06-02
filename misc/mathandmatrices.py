@@ -435,14 +435,10 @@ def get_matM2(context, mesh, ANormalize=True):
     return Am, A;
 
 # Only god knows how many more versions of voronoi and cotangent weights are lying out there
-#Matrix M is always a diagonal matrix that is used for AX=b (example eigen decomposition_
+# Matrix M is always a diagonal matrix that is used for AX=b (example eigen decomposition_
 def get_matM3(context, mesh, ANormalize=True):
     NP_PI = np.pi * 0.5;
-    
-    def col(d, key):
-        val = d[key];
-        d[key] += 1;
-        return val; 
+    onebyeight = 1.0 / 8.0;
     #Positions of each vertex as a numpy N x 3  (float)
     vertices = getMeshVPos(mesh);
     #Vertex indices in each row representing a face index as numpy N x 3 (int)
@@ -454,51 +450,41 @@ def get_matM3(context, mesh, ANormalize=True):
     #Cotangent applied to all the angles in a face
     cotangles = 1.0 / np.tan(angles);
     squared_edge_length = np.zeros((num_faces, 3));
-    faces_area = np.zeros((num_faces, 1));
-    onebyeight = 1.0 / 8.0;
+        
+    print('STARTING WITH FACES AREA COMPUTATION');
+#     Edges AB, BC, CA, AC
+    AB = vertices[faces[:,1]] - vertices[faces[:, 0]];
+    AC = vertices[faces[:,2]] - vertices[faces[:, 0]];
+    BC = vertices[faces[:,2]] - vertices[faces[:, 1]];
     
-    for i1 in range(3):
-        i2 = (i1+1) % 3;
-        i3 = (i1+2) % 3;
-        print(i1, i2, i3);
-#         squared_edge_length[:,i1] = ((vertices[faces[:,i2], np.array([0])] - vertices[faces[:,i1], np.array([0])])**2);
-        edge = vertices[faces[:,i2]] - vertices[faces[:,i1]];
-        squared_edge_length[:,i1] = np.sum(edge**2, axis=1);
-#         print(faces[:,i2][0], faces[:,i1][0]);
-#         print(edge.shape, vertices[faces[:,i2]].shape, vertices[faces[:,i1]].shape);
-#         print(edge[0], vertices[faces[:,i2]][0], vertices[faces[:,i1]][0]);
-#         print(squared_edge_length[:,i1]);
-#         raise IndexError;
+    squared_edge_length[:,0] = np.sum(AB**2, axis=1);
+    squared_edge_length[:,1] = np.sum(BC**2, axis=1);
+    squared_edge_length[:,2] = np.sum(AC**2, axis=1);
     
-#     for i in range(1,4):
-#         i1 = ((i-1) % 3);
-#         i2 = (i % 3);
-#         i3 = ((i+1) % 3);        
-#         squared_edge_length[:,i1] = ((vertices[faces[:,i2], np.array([0])] - vertices[faces[:,i3], np.array([0])])**2);
-            
-    print('STARTING WITH FACES AREA COMPUTATION', squared_edge_length.shape);
-#    faces_area = 0.25 * np.sum(np.multiply(squared_edge_length, (1.0 / np.tan(angles))), axis=1);
+#     CA = vertices[faces[:,0]] - vertices[faces[:, 2]];
+    faces_area =  (np.sqrt(np.sum(np.cross(AB, AC)**2, axis=1)));
 #     faces_area = 0.25 * np.sum(squared_edge_length * cotangles, axis=1);
-    faces_area = np.sum(squared_edge_length * cotangles, axis=1);
-    
-    print('FINISHED FACES_AREA COMPUTATION');
+    print('FINISHED FACES_AREA COMPUTATION ', faces_area.shape);
+    faces_area = faces_area.repeat(3).reshape(num_faces,3) * 1.0;
     
     print('FINIDING INDICES OF VORONOI UNSAFE REGIONS ');
     #Voronoi safe triangles and their vertex ids
     n_o_t_i = np.where(np.max(angles, axis=1) < NP_PI)[0];
     
-    #Voronoi inappropriate vertices. Find the rows with face ids from angles
-    o_t_i = np.where(np.max(angles, axis=1) >= 1.571)[0];    
-    #vertex ids causing the obtuseness
-    o_t_i_rows, o_t_i_vertices_cols = np.where(angles[o_t_i] >= 1.571);    
-    #vertex ids of the neighbours of the vertices causing the obtuseness
-    o_t_i_n_o_rows, o_t_i_n_o_vertices_cols = np.where(angles[o_t_i] < 1.571);
+    #Voronoi inappropriate vertices. Find the rows of all face ids from angles > 90 degrees
+    o_t_i = np.where(np.max(angles, axis=1) >= NP_PI)[0];    
     
+    #vertex ids causing the obtuseness
+    o_t_i_rows, o_t_i_vertices_cols = np.where(angles[o_t_i] >= NP_PI);
+       
+    #vertex ids of the neighbours of the vertices causing the obtuseness
+    o_t_i_n_o_rows, o_t_i_n_o_vertices_cols = np.where(angles[o_t_i] < NP_PI);    
     
     o_t_i_rows = o_t_i[o_t_i_rows];    
+#     o_t_i_vertices = faces[o_t_i_rows, o_t_i_vertices_cols];
+    
     o_t_i_n_o_rows = o_t_i[o_t_i_n_o_rows];           
-    o_t_i_vertices = faces[o_t_i_rows, o_t_i_vertices_cols];
-    o_t_i_n_o_vertices = faces[o_t_i_n_o_rows, o_t_i_n_o_vertices_cols];
+#     o_t_i_n_o_vertices = faces[o_t_i_n_o_rows, o_t_i_n_o_vertices_cols];    
     
     print('FINDING VORONOI SAFE AREA VALUES');
     all_values = [];
@@ -509,12 +495,10 @@ def get_matM3(context, mesh, ANormalize=True):
     for i1 in range(3):
         i2 = (i1+1)%3;
         i3 = (i1+2)%3;
-#         idea is edgelength x cot(opposite vertex angle) for all connected edges
-#         values = onebyeight * ((cotangles[n_o_t_i, i2] * squared_edge_length[n_o_t_i, i2]) + (cotangles[n_o_t_i, i3] * squared_edge_length[n_o_t_i, i3]));
-        values = onebyeight * ((cotangles[n_o_t_i, i3] * squared_edge_length[n_o_t_i, i1]) + (cotangles[n_o_t_i, i2] * squared_edge_length[n_o_t_i, i3]));    
         rows = faces[n_o_t_i, i1];
         cols = faces[n_o_t_i, i1];
-#         cols = np.array([col(d, j) for j in rows]);
+#         idea is edgelength x cot(opposite vertex angle) for all connected edges
+        values = onebyeight * ((squared_edge_length[n_o_t_i, i3] * cotangles[n_o_t_i, i2]) + (squared_edge_length[n_o_t_i, i1] * cotangles[n_o_t_i, i3]));
         all_values.append(values);
         all_rows.append(rows);
         all_cols.append(cols);   
@@ -523,15 +507,21 @@ def get_matM3(context, mesh, ANormalize=True):
     rows1 = np.array(all_rows);
     cols1 = np.array(all_cols);
     values1 = np.array(all_values);
-        
-    rows2 = faces[o_t_i_rows, o_t_i_vertices_cols];
+    print('FINISHED FINDING VORONOI SAFE AREAS VALUES');
+    
+    print('FINDING VORONOI UNSAFE AREAS VALUES');
+    
+    rows2 = faces[o_t_i_rows , o_t_i_vertices_cols];
     cols2 = faces[o_t_i_rows, o_t_i_vertices_cols];
-    values2 = faces_area[o_t_i_rows] * 0.25;
+    values2 = faces_area[o_t_i_rows, o_t_i_vertices_cols] * 0.25;
      
     rows3 = faces[o_t_i_n_o_rows, o_t_i_n_o_vertices_cols];
     cols3 = faces[o_t_i_n_o_rows, o_t_i_n_o_vertices_cols];
-    values3 = faces_area[o_t_i_n_o_rows] * 0.125;
+    values3 = faces_area[o_t_i_n_o_rows, o_t_i_n_o_vertices_cols] * 0.125;
     
+    print('FINISHED FINDING VORONOI UNSAFE AREAS VALUES');
+    
+    print('STARTING WITH AREA COMPUTATION FINALIZATION');
     addA = spsp.csr_matrix((values1.flatten(), (rows1.flatten(), cols1.flatten())), shape=(num_vertices, num_vertices));
     addB = spsp.csr_matrix((values2.flatten(), (rows2.flatten(), cols2.flatten())), shape=(num_vertices, num_vertices));
     addC = spsp.csr_matrix((values3.flatten(), (rows3.flatten(), cols3.flatten())), shape=(num_vertices, num_vertices));     
@@ -543,37 +533,9 @@ def get_matM3(context, mesh, ANormalize=True):
         A = A.data / area;
     
     Am = spsp.dia_matrix((np.array(A.data).reshape(num_vertices, ), [0]), shape=(num_vertices, num_vertices));        
-    return Am, np.array(A.data);
-    
-        
-    A = spsp.dia_matrix((addA.sum(axis=1).reshape(num_vertices, ), [0]), shape=(num_vertices, num_vertices));
-    print('FINISHED FINDING VORONOI SAFE AREAS VALUES');
-    A = A.diagonal();
-
-    print('FINDING VORONOI UNSAFE AREAS VALUES');
-    for i in range(o_t_i_vertices.shape[0]):
-        vid = o_t_i_vertices[i];
-        fid = o_t_i_rows[i];
-        A[vid] = A[vid] + faces_area[fid] * 0.5;
-    
-    for i in range(o_t_i_n_o_vertices.shape[0]):
-        vid = o_t_i_n_o_vertices[i];
-        fid = o_t_i_n_o_rows[i];
-        A[vid] = A[vid] + faces_area[fid] * 0.25;    
-    
-    print('FINISHED FINDING VORONOI UNSAFE AREAS VALUES');
-    
-    print('STARTING WITH AREA COMPUTATION FINALIZATION');
-    
-    A = np.maximum(A, 1e-8).reshape(A.shape[0], );
-    if(ANormalize):
-        area = A.sum();
-        A = A / area;
-    Am = spsp.dia_matrix((A, [0]), shape=(num_vertices, num_vertices));    
-#     np.set_printoptions(precision=4, suppress=True);
     print('FINISHING WITH AREA COMPUTATION FINALIZATION');
-#     sio.savemat(bpy.path.abspath('//matlab/%s.mat'%(mesh.name)), {'vertices':vertices, 'faces':faces+1});
-    return Am, A;
+    
+    return Am, np.array(A.data);
 
 def get_eigen(matM,matC,n):
     eva, eve = eigsh(matC,k=n,M=matM,sigma=-1e-8,which='LM');
@@ -675,6 +637,11 @@ def getMeshVPos(mesh, extra_points=[]):
         vpos.append([p.x, p.y, p.z]);
     
     return np.array(vpos);
+
+def getMeshNormals(mesh):
+    normals = np.zeros((N,3));
+    for v in mesh.data.vertices:
+        normals[v.index] = v.normal.normalized().to_tuple(); 
 
 def getMeshFaceAngles(mesh):
     bm = getBMMesh(bpy.context, mesh, useeditmode=False);

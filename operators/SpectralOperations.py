@@ -10,6 +10,7 @@ import gc
 import bpy, time;
 import numpy as np;
 import scipy.io as sio;
+import scipy.sparse as spsp;
 
 from sklearn.decomposition import PCA as sklearnPCA;
 from sklearn.preprocessing import StandardScaler;
@@ -24,6 +25,9 @@ from GenericMarkerCreator.misc.mathandmatrices import setMeshVPOS;
 from GenericMarkerCreator.misc.TrimeshCurvatures import need_curvatures;
 from GenericMarkerCreator.misc.mathandmatrices import getMeshFaces;
 from GenericMarkerCreator.misc.staticutilities import addConstraint, getBlenderMarker, detectMorN;
+
+from GenericMarkerCreator.misc.mathandmatrices import getMeshVPos, get_matC2;
+from GenericMarkerCreator.misc.mathandmatrices import get_matM3;
 
 def getGISIFColorsInner(context, mesh, applyMesh=None):    
     use_mesh = mesh;
@@ -56,6 +60,46 @@ def pcaTransform(context, mesh, features, K=5):
         sio.savemat(bpy.path.abspath('%s/%s.mat'%(mesh.signatures_dir, mesh.name)), {'eigenvectors':V.T, 'eigenvalues':D, 'mu':mu, 'X':X_std,'XMinusMu':(X_std.T - mu), 'transformed':Y_sklearn});        
         print('FINISHED SAVING ::: %s/%s.mat'%(mesh.signatures_dir, mesh.name));
         return mu, Y_sklearn;
+
+#The operators for creating landmarks
+class MeanCurvatures(bpy.types.Operator):
+    bl_idname = "genericlandmarks.meancurvatures";
+    bl_label = "Mean Curvatures";
+    bl_description = "Plot the mean curvature values as a color. This method uses Mark Meyer with post processing the curvatures using histogram";
+    bl_space_type = "VIEW_3D";
+    bl_region_type = "UI";
+    bl_context = "objectmode";
+    currentobject = bpy.props.StringProperty(name="Initialize for Object", default = "--");
+    
+    def mesh_mean_curvatures(self, context, mesh):
+        vpos = getMeshVPos(mesh);
+        N = vpos.shape[0];
+        normals = np.zeros((N,3));
+        for v in mesh.data.vertices:
+            normals[v.index] = v.normal.to_tuple();    
+        vdotnormal = np.sum(vpos * normals, axis=1);
+        vdotnormal[vdotnormal < 0.0] = -1.0;
+        vdotnormal[vdotnormal > 0.0] = 1.0;        
+        normals_weight = spsp.dia_matrix((vdotnormal, 0), shape=(N,N));
+        
+        C = get_matC2(context, mesh);
+        A, Aa = get_matM3(context, mesh, ANormalize=False);
+        AMixed = spsp.dia_matrix(((1.0 / (2.0*A.data)), 0), shape=(N,N));
+        delta = AMixed.dot(C.dot(vpos));
+        K = np.sqrt(np.sum(delta**2, axis=1));
+        K = normals_weight.dot(K);
+        return K;
+    
+    def execute(self, context):
+        try:            
+            mesh = bpy.data.objects[self.currentobject];
+        except:
+            mesh = context.active_object;
+        
+        K = self.mesh_mean_curvatures(context, mesh);
+        applyColoringForMeshErrors(context, mesh, K, v_group_name='mean curvatures', use_weights=True, normalize_weights=True, use_histogram_preprocess=True);
+        return {'FINISHED'};
+        
 
 #The operators for creating landmarks
 class SpectralHKS(bpy.types.Operator):
