@@ -657,9 +657,9 @@ def getMinMax(data, histsize=10000, percent_begin=0.1, percent_end=0.9):
         min_, max_ = getBinEdgeValue(N, hist, edges, percent_begin), getBinEdgeValue(N, hist, edges, percent_end);
     return min_, max_;
 
-def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors", use_weights=False, normalize_weights=True, use_histogram_preprocess=False): 
+def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors", use_weights=False, normalize_weights=True, use_histogram_preprocess=False, percent_min=0.1, percent_max=0.9): 
     if(use_histogram_preprocess):
-        min_, max_ = getMinMax(error_values);
+        min_, max_ = getMinMax(error_values, percent_begin=percent_min, percent_end=percent_max);
         error_values[error_values <= min_] = min_;
         error_values[error_values >= max_] = max_;
     

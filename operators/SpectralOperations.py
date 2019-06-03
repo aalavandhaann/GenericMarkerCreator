@@ -69,7 +69,10 @@ class MeanCurvatures(bpy.types.Operator):
     bl_space_type = "VIEW_3D";
     bl_region_type = "UI";
     bl_context = "objectmode";
+    bl_options = {'REGISTER', 'UNDO'}
     currentobject = bpy.props.StringProperty(name="Initialize for Object", default = "--");
+    percent_min = bpy.props.FloatProperty(name="Min Histogram", default=0.1);
+    percent_max = bpy.props.FloatProperty(name="Max Histogram", default=0.9);
     
     def mesh_mean_curvatures(self, context, mesh):
         vpos = getMeshVPos(mesh);
@@ -97,7 +100,7 @@ class MeanCurvatures(bpy.types.Operator):
             mesh = context.active_object;
         
         K = self.mesh_mean_curvatures(context, mesh);
-        applyColoringForMeshErrors(context, mesh, K, v_group_name='mean curvatures', use_weights=True, normalize_weights=True, use_histogram_preprocess=True);
+        applyColoringForMeshErrors(context, mesh, K, v_group_name='mean curvatures', use_weights=True, normalize_weights=True, use_histogram_preprocess=True, percent_min=self.percent_min, percent_max=self.percent_max);
         return {'FINISHED'};
         
 
