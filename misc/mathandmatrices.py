@@ -665,6 +665,40 @@ def getMeshFaces(mesh):
     
     return np.array(f_vids, dtype=int);
 
+def getMeshFaceNormals(mesh):
+    faces = mesh.data.polygons;
+    np_face_normals = np.zeros((len(faces), 3), dtype=float);
+    for f in faces:
+        np_face_normals[f.index] = f.normal.to_tuple();
+    
+    return np_face_normals;
+
+def getEdgeFaces(mesh):
+    bm = getBMMesh(bpy.context, mesh, useeditmode=False);
+    ensurelookuptable(bm);
+    np_edge_faces = np.zeros((len(bm.edges), 2), dtype=int);
+    for e in bm.edges:
+        np_edge_faces[e.index] = [f.index for f in e.link_faces];
+    
+    bm.free();
+    return np_edge_faces;
+
+def getEdgeVertices(mesh):
+    np_edge_vertices = np.zeros((len(mesh.data.edges), 2), dtype=int);
+    for e in mesh.data.edges:
+        np_edge_vertices[e.index] = [vid for vid in e.vertices];    
+    return np_edge_vertices;
+
+def getMeshVertexWeights(mesh, group_name):
+    assert(group_name != '');
+    N = len(mesh.data.vertices);
+    weights = np.zeros((N), dtype=float);
+    try:
+        vgroup = mesh.vertex_groups[group_name];
+    except KeyError:
+        return weights;    
+    return np.array([vgroup.weight(i) for i in range(N)], dtype=float); 
+    
 
 def getDuplicatedObject(context, meshobject, meshname="Duplicated", wire = False):
         if(not context.mode == "OBJECT"):

@@ -640,19 +640,21 @@ def getBinEdgeValue(N, hist, edges, fraction):
             break;
     return edges[i+1];
 
-def getMinMax(data, histsize=10000):
+def getMinMax(data, histsize=10000, percent_begin=0.1, percent_end=0.9):
     N = data.shape[0];
     hist, edges = np.histogram(data, bins=histsize);
     min_, max_ = np.min(data), np.max(data);
     threshold = histsize / 5;
     maxcount = np.max(hist);
     if(maxcount > threshold):
-        #sorted_data = np.sort(data);
+        sorted_data = np.sort(data);
         Nby100 = N / 100;
         left_index = int(Nby100);
         right_index = N - left_index;
-        hist, edges = np.histogram(data, bins=histsize*50);
-        min_, max_ = getBinEdgeValue(N, hist, edges, 0.1), getBinEdgeValue(N, hist, edges, 0.9);
+        newmin = sorted_data[left_index];
+        newmax = sorted_data[right_index];
+        hist, edges = np.histogram(data, bins=histsize*50, range=(newmin, newmax));
+        min_, max_ = getBinEdgeValue(N, hist, edges, percent_begin), getBinEdgeValue(N, hist, edges, percent_end);
     return min_, max_;
 
 def applyColoringForMeshErrors(context, error_mesh, error_values, *, A = None, B = None, v_group_name = "lap_errors", use_weights=False, normalize_weights=True, use_histogram_preprocess=False): 
