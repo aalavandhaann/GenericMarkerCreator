@@ -639,9 +639,13 @@ def getMeshVPos(mesh, extra_points=[]):
     return np.array(vpos);
 
 def getMeshNormals(mesh):
+    N = len(mesh.data.vertices);
     normals = np.zeros((N,3));
     for v in mesh.data.vertices:
-        normals[v.index] = v.normal.normalized().to_tuple(); 
+        normals[v.index] = v.normal.normalized().to_tuple();
+    
+    return normals;
+
 
 def getMeshFaceAngles(mesh):
     bm = getBMMesh(bpy.context, mesh, useeditmode=False);
@@ -678,7 +682,10 @@ def getEdgeFaces(mesh):
     ensurelookuptable(bm);
     np_edge_faces = np.zeros((len(bm.edges), 2), dtype=int);
     for e in bm.edges:
-        np_edge_faces[e.index] = [f.index for f in e.link_faces];
+        if(len(e.link_faces) > 1):
+            np_edge_faces[e.index] = [f.index for f in e.link_faces];
+        else:
+            np_edge_faces[e.index] = [e.link_faces[0].index, e.link_faces[0].index];
     
     bm.free();
     return np_edge_faces;

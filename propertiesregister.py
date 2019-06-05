@@ -251,7 +251,10 @@ def register():
     bpy.types.Object.live_wks = bpy.props.BoolProperty(name='Live WKS', description="Live WKS means reflect the changes in the scene immediately after values are changed (Eigen K or HKS Time)", default=False);
     bpy.types.Object.live_spectral_shape = bpy.props.BoolProperty(name='Live Spectral Shape', description="Perform Live spectral shape", default=False);
     bpy.types.Object.live_gisif = bpy.props.BoolProperty(name='Live GISIF', description="Live GISIF means reflect the changes in the scene immediately after values are changed (Treshold or Group Index)", default=False);
-       
+    
+    bpy.types.Object.post_process_colors = bpy.props.BoolProperty(name='Post Process Colors', description="Apply a postprocessing with histograms on the scalar values when visualized as colors", default=True);
+    bpy.types.Object.post_process_min = bpy.props.FloatProperty(name='Post Process Min', description="Minimum Post processing value for histogram", default=0.1, min=0.0, max=1.0);
+    bpy.types.Object.post_process_max = bpy.props.FloatProperty(name='Post Process Max', description="Apply a postprocessin on the scalar values when visualized as colors", default=0.9, min=0.0, max=1.0);
     
     bpy.types.Object.generic_landmarks = bpy.props.CollectionProperty(type=GenericLandmark);
     

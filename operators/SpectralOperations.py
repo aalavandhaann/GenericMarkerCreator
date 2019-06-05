@@ -71,6 +71,7 @@ class MeanCurvatures(bpy.types.Operator):
     bl_context = "objectmode";
     bl_options = {'REGISTER', 'UNDO'}
     currentobject = bpy.props.StringProperty(name="Initialize for Object", default = "--");
+    postprocess = bpy.props.BoolProperty(name="Post Process", default=False);
     percent_min = bpy.props.FloatProperty(name="Min Histogram", default=0.1);
     percent_max = bpy.props.FloatProperty(name="Max Histogram", default=0.9);
     
@@ -100,7 +101,14 @@ class MeanCurvatures(bpy.types.Operator):
             mesh = context.active_object;
         
         K = self.mesh_mean_curvatures(context, mesh);
-        applyColoringForMeshErrors(context, mesh, K, v_group_name='mean curvatures', use_weights=True, normalize_weights=True, use_histogram_preprocess=True, percent_min=self.percent_min, percent_max=self.percent_max);
+        
+        pp = mesh.post_process_colors;
+        ppmin = mesh.post_process_min;
+        ppmax = mesh.post_process_max;
+        if(pp):
+            applyColoringForMeshErrors(context, mesh, K, v_group_name='mean curvatures', use_weights=True, normalize_weights=True, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
+        else:
+            applyColoringForMeshErrors(context, mesh, K, v_group_name='mean curvatures', use_weights=True, normalize_weights=True, use_histogram_preprocess=self.postprocess, percent_min=self.percent_min, percent_max=self.percent_max);
         return {'FINISHED'};
         
 
@@ -123,13 +131,20 @@ class SpectralHKS(bpy.types.Operator):
             
         if(mesh is not None):            
             heat_colors, k = getHKSColors(context, mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t);
-            applyColoringForMeshErrors(context, mesh, heat_colors, v_group_name='hks', use_weights=False);
+            
+            pp = mesh.post_process_colors;
+            ppmin = mesh.post_process_min;
+            ppmax = mesh.post_process_max;
+            applyColoringForMeshErrors(context, mesh, heat_colors, v_group_name='hks', use_weights=False, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
             
             if(mesh.spectral_sync):
                 paired_mesh = detectMorN(mesh);
+                pp = paired_mesh.post_process_colors;
+                ppmin = paired_mesh.post_process_min;
+                ppmax = paired_mesh.post_process_max;
                 if(paired_mesh):
                     heat_colors, k = getHKSColors(context, paired_mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t);
-                    applyColoringForMeshErrors(context, paired_mesh, heat_colors, v_group_name='hks', use_weights=False);
+                    applyColoringForMeshErrors(context, paired_mesh, heat_colors, v_group_name='hks', use_weights=False, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
                 
                 
         return{'FINISHED'};
@@ -153,13 +168,20 @@ class SpectralWKS(bpy.types.Operator):
             
         if(mesh is not None):
             wks_colors, k = getWKSColors(context, mesh, mesh.eigen_k, mesh.wks_e, mesh.wks_current_e, mesh.wks_variance);
-            applyColoringForMeshErrors(context, mesh, wks_colors, v_group_name='wks', use_weights=False);
+            pp = mesh.post_process_colors;
+            ppmin = mesh.post_process_min;
+            ppmax = mesh.post_process_max;
+            
+            applyColoringForMeshErrors(context, mesh, wks_colors, v_group_name='wks', use_weights=False, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
             
             if(mesh.spectral_sync):
                 paired_mesh = detectMorN(mesh);
+                pp = paired_mesh.post_process_colors;
+                ppmin = paired_mesh.post_process_min;
+                ppmax = paired_mesh.post_process_max;
                 if(paired_mesh):
                     wks_colors, k = getWKSColors(context, paired_mesh, mesh.eigen_k, mesh.wks_e, mesh.wks_current_e, mesh.wks_variance);
-                    applyColoringForMeshErrors(context, paired_mesh, wks_colors, v_group_name='wks', use_weights=False);
+                    applyColoringForMeshErrors(context, paired_mesh, wks_colors, v_group_name='wks', use_weights=False, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
                 
         return{'FINISHED'};
 
@@ -203,15 +225,22 @@ class SpectralGISIF(bpy.types.Operator):
                     delta_gisif_colors = np.sqrt((normalized_gisifs[o_vid] - normalized_gisifs)**2);                    
                     normalized_gisifs = np.interp(delta_gisif_colors, (delta_gisif_colors.min(), delta_gisif_colors.max()), (0.0,1.0));            
             
-            applyColoringForMeshErrors(context, mesh, normalized_gisifs, v_group_name='gisif', use_weights=False, A=np.min(normalized_gisifs), B=np.max(normalized_gisifs));
+            
+            pp = mesh.post_process_colors;
+            ppmin = mesh.post_process_min;
+            ppmax = mesh.post_process_max;
+            applyColoringForMeshErrors(context, mesh, normalized_gisifs, v_group_name='gisif', use_weights=False, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
             
             if(mesh.spectral_sync):
                 paired_mesh = detectMorN(mesh);
+                pp = paired_mesh.post_process_colors;
+                ppmin = paired_mesh.post_process_min;
+                ppmax = paired_mesh.post_process_max;
                 if(paired_mesh):
                     gisif_colors, k, gisif_name = getGISIFColorsInner(context, mesh, applyMesh=paired_mesh);
                     paired_mesh.gisif_group_name = gisif_name;
                     normalized_gisifs = np.interp(gisif_colors, (gisif_colors.min(), gisif_colors.max()), (0.0,1.0)); 
-                    applyColoringForMeshErrors(context, paired_mesh, normalized_gisifs, v_group_name='gisif', use_weights=False, A=np.min(normalized_gisifs), B=np.max(normalized_gisifs));
+                    applyColoringForMeshErrors(context, paired_mesh, normalized_gisifs, v_group_name='gisif', use_weights=False, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
             
         return{'FINISHED'};
 

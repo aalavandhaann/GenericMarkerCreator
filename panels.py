@@ -25,6 +25,15 @@ class SpectralGeneralPanel(bpy.types.Panel):
             row.prop(context.active_object, 'spectral_sync');
             
             row = mainbox.row();
+            row.prop(context.active_object, 'post_process_colors', 'Post Process Colors?');
+            
+            col = row.column();
+            col.prop(context.active_object, 'post_process_min', 'Min');
+            
+            col = row.column();
+            col.prop(context.active_object, 'post_process_max', 'Max');
+            
+            row = mainbox.row();
             row.prop(context.active_object, 'eigen_k');
             
             box = mainbox.box();
