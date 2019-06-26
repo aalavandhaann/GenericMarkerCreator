@@ -101,7 +101,7 @@ class MeanCurvatures(bpy.types.Operator):
             mesh = context.active_object;
         
         K = self.mesh_mean_curvatures(context, mesh);
-        
+        print('MESH MEAN CURVATURES ::: ', mesh.name, mesh.post_process_colors);
         pp = mesh.post_process_colors;
         ppmin = mesh.post_process_min;
         ppmax = mesh.post_process_max;
