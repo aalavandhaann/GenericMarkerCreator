@@ -239,6 +239,13 @@ def getLaplacianMatrixUmbrella(context, mesh, anchorsIdx=[]):
     L = spsp.coo_matrix((V, (I, J)), shape=(N+K, N)).tocsr();
     return L;
 
+#Returns a matrix whose rows=columns as given in indices filled with ones
+def getColumnFilledMatrix(indices, values, rows_n, cols_n):
+    I = np.arange(rows_n, dtype=int);
+    J = indices;
+    V = values;
+    return spsp.coo_matrix((V,(I,J)), shape=(rows_n, cols_n)).tocsr();
+
 #Purpose: To return a sparse matrix representing a laplacian matrix with
 #cotangent weights in the upper square part and anchors as the lower rows
 #Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)
@@ -625,8 +632,15 @@ def getMeshVoronoiAreasSlow(context, mesh):
     return Am, A;
 
 def setMeshVPOS(mesh, vpos):
-    for index, vect in enumerate(vpos):
-        mesh.data.vertices[index].co = vect;
+    for index in range(vpos.shape[0]):
+        vect = vpos[index];
+        try:
+            mesh.data.vertices[index].co = vect;
+        except ValueError:
+            print(index, vect);
+            mesh.data.vertices[index].co = vect[0];
+            raise ValueError;
+            
 
 def getMeshVPos(mesh, extra_points=[]):
     vpos = [];

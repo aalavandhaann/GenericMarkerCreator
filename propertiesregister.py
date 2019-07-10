@@ -1,10 +1,17 @@
 import bpy;
+
+
+import numpy as np;
+import scipy.sparse as spsp;
+from scipy.sparse.linalg import lsqr;
+
+
 from mathutils import Vector;
 from mathutils.bvhtree import BVHTree;
 
 from GenericMarkerCreator.misc.staticutilities import getMarkerOwner, getGenericLandmark;
 from GenericMarkerCreator.misc.meshmathutils import getBarycentricCoordinateFromPolygonFace, getGeneralCartesianFromBarycentre;
-from GenericMarkerCreator.misc.mathandmatrices import getDuplicatedObject, getMeshVPos;
+from GenericMarkerCreator.misc.mathandmatrices import getDuplicatedObject, getMeshVPos, setMeshVPOS, getWKSLaplacianMatrixCotangent, getColumnFilledMatrix;
 
 #To enable edit/removal button in the custom properties panel of Blender
 #its necessary to remove the property assignment to entities such as scene, object etc,
@@ -165,11 +172,41 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                     apply_on_mesh = c.scene.objects["%s-mapped-shape-%s"%(owner_mesh.name, self.name)];
                 except KeyError:
                     apply_on_mesh = getDuplicatedObject(c, owner_mesh, meshname="%s-mapped-shape-%s"%(owner_mesh.name, self.name));
-                    
+            
+            constraint_positions = [];
+            constraint_ids = [];
+            invalid_indices = [];
+            
             for vid, mapped_point in enumerate(self.mapped_points):
                 if(mapped_point.is_valid):
                     co = getGeneralCartesianFromBarycentre(mapped_point.bary_ratios, [map_to.data.vertices[m_vid].co for m_vid in mapped_point.bary_indices]);
-                    apply_on_mesh.data.vertices[vid].co = co;
+#                     apply_on_mesh.data.vertices[vid].co = co;
+                    constraint_ids.append(vid);
+                    constraint_positions.append(co.to_tuple());
+                else:
+                    invalid_indices.append(vid);
+            
+            constraint_positions = np.array(constraint_positions, dtype=np.float);
+            constraint_ids = np.array(constraint_ids, dtype=np.int);
+            invalid_indices = np.array(invalid_indices, dtype=np.int);
+            
+            if(invalid_indices.shape[0] > 0):
+                vpos = getMeshVPos(apply_on_mesh);
+                originalL = getWKSLaplacianMatrixCotangent(c, apply_on_mesh);
+                delta_cos = originalL.dot(vpos);
+                
+                extra_weights = getColumnFilledMatrix(constraint_ids, np.ones((constraint_ids.shape[0]), dtype=np.float), constraint_ids.shape[0], vpos.shape[0]);
+                L = spsp.vstack([originalL, extra_weights]);
+                delta = np.vstack((delta_cos, constraint_positions));
+                
+                n_count = L.shape[1];
+                final_v_pos = np.zeros((n_count, 3));
+                for i in range(3):
+                    final_v_pos[:, i] = lsqr(L, delta[:, i])[0];                    
+                setMeshVPOS(apply_on_mesh, final_v_pos);                
+            else:
+                setMeshVPOS(apply_on_mesh, constraint_positions);
+                    
             return apply_on_mesh, getMeshVPos(apply_on_mesh);
         
         except KeyError:
