@@ -246,6 +246,35 @@ def getColumnFilledMatrix(indices, values, rows_n, cols_n):
     V = values;
     return spsp.coo_matrix((V,(I,J)), shape=(rows_n, cols_n)).tocsr();
 
+def getRowsColumnsData(vpos, faces, edges, index=0):
+    index1 = (index+1)%3;
+    index2 = (index+2)%3;
+    vects_index1 = vpos[faces[:,index]] - vpos[faces[:,index1]];
+    vects_index2 = vpos[faces[:,index]] - vpos[faces[:,index2]];
+    dist_index1 = np.sqrt(np.sum(vects_index1**2, axis=1));
+    dist_index2 = np.sqrt(np.sum(vects_index2**2, axis=1));
+    
+    rows = np.tile(faces[:,index], 2);
+    cols = np.vstack((faces[:,index1], faces[:,index2])).flatten();
+    data = np.vstack((dist_index1, dist_index2)).flatten();
+    
+    return rows, cols, data;
+
+def getMeshAdjacency(mesh):
+    vpos = getMeshVPos(mesh);
+    V_N = vpos.shape[0];
+    faces = getMeshFaces(mesh);
+    edges = getEdgeVertices(mesh);
+    
+    r1, c1, d1 = getRowsColumnsData(vpos, faces, edges, index=0);
+    r2, c2, d2 = getRowsColumnsData(vpos, faces, edges, index=1);
+    r3, c3, d3 = getRowsColumnsData(vpos, faces, edges, index=2);
+    r, c, d = np.vstack((r1, r2, r3)).flatten(), np.vstack((c1, c2, c3)).flatten(), np.vstack((d1, d2, d3)).flatten();
+    
+    csgraph = spsp.csr_matrix((d, (r,c)), shape=(V_N, V_N));
+    return csgraph*0.5;
+
+
 #Purpose: To return a sparse matrix representing a laplacian matrix with
 #cotangent weights in the upper square part and anchors as the lower rows
 #Inputs: mesh (polygon mesh object), anchorsIdx (indices of the anchor points)

@@ -149,7 +149,8 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                 mapped_point = self.mapped_points.add();
                 x, y, z = v.co.to_tuple();
                 co, n, i, d = btree.find_nearest(Vector((x,y,z)));
-                if(co and n and i and d):
+                #Also check if the normals deviation is < 45 degrees
+                if(co and n and i and d and (n.normalized().dot(v.normal.normalized()) > 0.75)):
                     face = map_to.data.polygons[i];
                     u,v,w,ratio, isinside, vid1, vid2, vid3 = getBarycentricCoordinateFromPolygonFace(co, face, map_to, snapping=False, extra_info = True);
                     mapped_point.bary_ratios = [u, v, w];
