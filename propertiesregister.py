@@ -12,6 +12,7 @@ from mathutils.bvhtree import BVHTree;
 from GenericMarkerCreator.misc.staticutilities import getMarkerOwner, getGenericLandmark;
 from GenericMarkerCreator.misc.meshmathutils import getBarycentricCoordinateFromPolygonFace, getGeneralCartesianFromBarycentre;
 from GenericMarkerCreator.misc.mathandmatrices import getDuplicatedObject, getMeshVPos, setMeshVPOS, getWKSLaplacianMatrixCotangent, getColumnFilledMatrix;
+from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptable;
 
 #To enable edit/removal button in the custom properties panel of Blender
 #its necessary to remove the property assignment to entities such as scene, object etc,
@@ -150,7 +151,9 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                 x, y, z = v.co.to_tuple();
                 co, n, i, d = btree.find_nearest(Vector((x,y,z)));
                 #Also check if the normals deviation is < 45 degrees
-                if(co and n and i and d and (n.normalized().dot(v.normal.normalized()) > 0.75)):
+#                 if(co and n and i and d and (n.normalized().dot(v.normal.normalized()) > 0.75)):
+                if(co and n and i and d and (n.normalized().dot(v.normal.normalized()) > 0.95)):
+#                 if(co and n and i and d):
                     face = map_to.data.polygons[i];
                     u,v,w,ratio, isinside, vid1, vid2, vid3 = getBarycentricCoordinateFromPolygonFace(co, face, map_to, snapping=False, extra_info = True);
                     mapped_point.bary_ratios = [u, v, w];
@@ -162,6 +165,7 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
             raise;
         
     def deformWithMapping(self):
+        print('DEFORM WITH MAPPING (UPLIFTING)');
         c = bpy.context;
         owner_mesh = self.id_data;
         try:
@@ -190,21 +194,58 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
             constraint_positions = np.array(constraint_positions, dtype=np.float);
             constraint_ids = np.array(constraint_ids, dtype=np.int);
             invalid_indices = np.array(invalid_indices, dtype=np.int);
+            vpos = getMeshVPos(apply_on_mesh);
+            print('TOTAL VERTICES : #%s, INVALID INDICES : #%s'%(vpos.shape[0], invalid_indices.shape[0], ))
+#             if(invalid_indices.shape[0] > 0 and invalid_indices.shape[0] != vpos.shape[0]):       
+#                 print('SOLVE WITH LAPLACIAN FOR INVALID MAPPING INDICES');   
+#                 originalL = getWKSLaplacianMatrixCotangent(c, apply_on_mesh);
+#                 delta_cos = originalL.dot(vpos);
+#                 print(delta_cos.shape, constraint_positions.shape);
+#                 extra_weights = getColumnFilledMatrix(constraint_ids, np.ones((constraint_ids.shape[0]), dtype=np.float), constraint_ids.shape[0], vpos.shape[0]);
+#                 L = spsp.vstack([originalL, extra_weights]);
+#                 delta = np.vstack((delta_cos, constraint_positions));
+#                 
+#                 n_count = L.shape[1];
+#                 final_v_pos = np.zeros((n_count, 3));
+#                 for i in range(3):
+#                     final_v_pos[:, i] = lsqr(L, delta[:, i])[0];                    
+#                 setMeshVPOS(apply_on_mesh, final_v_pos);
             
-            if(invalid_indices.shape[0] > 0):
-                vpos = getMeshVPos(apply_on_mesh);
-                originalL = getWKSLaplacianMatrixCotangent(c, apply_on_mesh);
-                delta_cos = originalL.dot(vpos);
+            if(invalid_indices.shape[0] > 0 and invalid_indices.shape[0] != vpos.shape[0]):       
+                print('SOLVE WITH LSE FOR INVALID MAPPING INDICES');   
+                v_group_name='Mapping-LSE-deformer';
+        
+                if(None == apply_on_mesh.vertex_groups.get(v_group_name)):
+                    apply_on_mesh.vertex_groups.new(name=v_group_name);
                 
-                extra_weights = getColumnFilledMatrix(constraint_ids, np.ones((constraint_ids.shape[0]), dtype=np.float), constraint_ids.shape[0], vpos.shape[0]);
-                L = spsp.vstack([originalL, extra_weights]);
-                delta = np.vstack((delta_cos, constraint_positions));
+                group_ind = apply_on_mesh.vertex_groups[v_group_name].index;
+                vertex_group = apply_on_mesh.vertex_groups[group_ind];    
+                vertex_group.remove([v.index for v in apply_on_mesh.data.vertices]);
+                apply_on_mesh.modifiers.clear();
+                vertex_group.add(constraint_ids.tolist(), 1.0, 'REPLACE');
                 
-                n_count = L.shape[1];
-                final_v_pos = np.zeros((n_count, 3));
-                for i in range(3):
-                    final_v_pos[:, i] = lsqr(L, delta[:, i])[0];                    
-                setMeshVPOS(apply_on_mesh, final_v_pos);                
+                lap_mod = apply_on_mesh.modifiers.new(name=vertex_group.name, type='LAPLACIANDEFORM');
+                lap_mod.vertex_group = vertex_group.name;
+                lap_mod.iterations = 1;
+                
+                bpy.ops.object.select_all(action="DESELECT");
+                apply_on_mesh.select = True;
+                c.scene.objects.active = apply_on_mesh;
+                
+                bpy.ops.object.laplaciandeform_bind(modifier=lap_mod.name);
+                
+                bm = getBMMesh(c, apply_on_mesh, useeditmode=False);
+                ensurelookuptable(bm);
+                for i in range(constraint_ids.shape[0]):
+                    vid = constraint_ids[i];
+                    bm.verts[vid].co = constraint_positions[i];
+                
+                bm.to_mesh(apply_on_mesh.data);
+                bm.free();
+                bpy.ops.object.modifier_apply(modifier=v_group_name);
+            
+            elif(invalid_indices.shape[0] == vpos.shape[0]):
+                print('NO SOLUTION TO THIS SYSTEM WITH MAPPING');
             else:
                 setMeshVPOS(apply_on_mesh, constraint_positions);
                     
