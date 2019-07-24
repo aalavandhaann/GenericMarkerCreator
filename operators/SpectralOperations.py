@@ -78,12 +78,17 @@ class MeanCurvatures(bpy.types.Operator):
     def mesh_mean_curvatures(self, context, mesh):
         vpos = getMeshVPos(mesh);
         N = vpos.shape[0];
-        normals = np.zeros((N,3));
-        for v in mesh.data.vertices:
-            normals[v.index] = v.normal.to_tuple();    
-        vdotnormal = np.sum(vpos * normals, axis=1);
-        vdotnormal[vdotnormal < 0.0] = -1.0;
-        vdotnormal[vdotnormal > 0.0] = 1.0;        
+        if(mesh.mean_curvatures_use_normal):
+            normals = np.zeros((N,3));        
+            for v in mesh.data.vertices:
+                normals[v.index] = v.normal.to_tuple();
+                
+            vdotnormal = np.sum(vpos * normals, axis=1);
+#             vdotnormal[vdotnormal < 0.0] = -1.0;
+#             vdotnormal[vdotnormal > 0.0] = 1.0;
+        else:
+            vdotnormal = np.ones((N));
+        
         normals_weight = spsp.dia_matrix((vdotnormal, 0), shape=(N,N));
         
         C = get_matC2(context, mesh);

@@ -18,6 +18,11 @@ from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptab
 #its necessary to remove the property assignment to entities such as scene, object etc,
 #From the register routine.
 
+def updateMeanCurvatures(self, context):
+    if(self.post_process_colors):
+        bpy.ops.genericlandmarks.meancurvatures('EXEC_DEFAULT', currentobject=self.name);
+    
+
 def updateSpectralProperty(self, context):
 #     print('WHO AM I : ', self);
     if(self.spectral_soft_update):
@@ -332,8 +337,11 @@ def register():
     bpy.types.Object.live_gisif = bpy.props.BoolProperty(name='Live GISIF', description="Live GISIF means reflect the changes in the scene immediately after values are changed (Treshold or Group Index)", default=False);
     
     bpy.types.Object.post_process_colors = bpy.props.BoolProperty(name='Post Process Colors', description="Apply a postprocessing with histograms on the scalar values when visualized as colors", default=True);
-    bpy.types.Object.post_process_min = bpy.props.FloatProperty(name='Post Process Min', description="Minimum Post processing value for histogram", default=0.1, min=0.0, max=1.0);
-    bpy.types.Object.post_process_max = bpy.props.FloatProperty(name='Post Process Max', description="Apply a postprocessin on the scalar values when visualized as colors", default=0.9, min=0.0, max=1.0);
+    bpy.types.Object.post_process_min = bpy.props.FloatProperty(name='Post Process Min', description="Minimum Post processing value for histogram", default=0.1, min=0.0, max=1.0, step=0.01, precision=4, update=updateMeanCurvatures);
+    bpy.types.Object.post_process_max = bpy.props.FloatProperty(name='Post Process Max', description="Apply a postprocessin on the scalar values when visualized as colors", default=0.9, min=0.0, max=1.0, step=0.01, precision=4, update=updateMeanCurvatures);
+    
+    bpy.types.Object.mean_curvatures_use_normal = bpy.props.BoolProperty(name='Normals Control Mean', description="Do Normals control mean curvatures?", default=True, update=updateMeanCurvatures);
+    
     
     bpy.types.Object.generic_landmarks = bpy.props.CollectionProperty(type=GenericLandmark);
     

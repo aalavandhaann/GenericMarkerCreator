@@ -45,14 +45,21 @@ class SpectralGeneralPanel(bpy.types.Panel):
             row = box.row();
             row.operator(SpectralFeatures.bl_idname);
             
+            box = layout.box();
+            box.label('Mean Curvatures')
+            
             row = box.row();
+            col = row.column();
+            col.prop(context.active_object, 'mean_curvatures_use_normal');
+            
+            col = row.column();
             op = row.operator(MeanCurvatures.bl_idname);
             
-            row = box.row();
-            row.prop(op, "percent_min");
-            
-            row = box.row();
-            row.prop(op, "percent_max");
+#             row = box.row();
+#             row.prop(op, "percent_min");
+#             
+#             row = box.row();
+#             row.prop(op, "percent_max");
     
 
 class HKSPanel(bpy.types.Panel):
