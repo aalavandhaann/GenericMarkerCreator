@@ -144,9 +144,9 @@ class SpectralHKS(bpy.types.Operator):
             
             if(mesh.spectral_sync):
                 paired_mesh = detectMorN(mesh);
-                pp = paired_mesh.post_process_colors;
-                ppmin = paired_mesh.post_process_min;
-                ppmax = paired_mesh.post_process_max;
+#                 pp = paired_mesh.post_process_colors;
+#                 ppmin = paired_mesh.post_process_min;
+#                 ppmax = paired_mesh.post_process_max;
                 if(paired_mesh):
                     heat_colors, k = getHKSColors(context, paired_mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t);
                     applyColoringForMeshErrors(context, paired_mesh, heat_colors, v_group_name='hks', use_weights=False, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
@@ -181,9 +181,9 @@ class SpectralWKS(bpy.types.Operator):
             
             if(mesh.spectral_sync):
                 paired_mesh = detectMorN(mesh);
-                pp = paired_mesh.post_process_colors;
-                ppmin = paired_mesh.post_process_min;
-                ppmax = paired_mesh.post_process_max;
+#                 pp = paired_mesh.post_process_colors;
+#                 ppmin = paired_mesh.post_process_min;
+#                 ppmax = paired_mesh.post_process_max;
                 if(paired_mesh):
                     wks_colors, k = getWKSColors(context, paired_mesh, mesh.eigen_k, mesh.wks_e, mesh.wks_current_e, mesh.wks_variance);
                     applyColoringForMeshErrors(context, paired_mesh, wks_colors, v_group_name='wks', use_weights=False, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
@@ -238,9 +238,9 @@ class SpectralGISIF(bpy.types.Operator):
             
             if(mesh.spectral_sync):
                 paired_mesh = detectMorN(mesh);
-                pp = paired_mesh.post_process_colors;
-                ppmin = paired_mesh.post_process_min;
-                ppmax = paired_mesh.post_process_max;
+#                 pp = paired_mesh.post_process_colors;
+#                 ppmin = paired_mesh.post_process_min;
+#                 ppmax = paired_mesh.post_process_max;
                 if(paired_mesh):
                     gisif_colors, k, gisif_name = getGISIFColorsInner(context, mesh, applyMesh=paired_mesh);
                     paired_mesh.gisif_group_name = gisif_name;
