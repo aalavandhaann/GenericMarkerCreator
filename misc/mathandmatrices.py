@@ -746,8 +746,18 @@ def getMeshVertexWeights(mesh, group_name):
     try:
         vgroup = mesh.vertex_groups[group_name];
     except KeyError:
-        return weights;    
-    return np.array([vgroup.weight(i) for i in range(N)], dtype=float); 
+        return weights;
+    
+    weights_values = [];
+    for i in range(N):
+        try:
+            weight = vgroup.weight(i);
+        except RuntimeError:
+            weight = 0.0;
+        weights_values.append(weight);
+        
+    
+    return np.array(weights_values, dtype=float); 
     
 
 def getDuplicatedObject(context, meshobject, meshname="Duplicated", wire = False):
