@@ -151,6 +151,7 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
             map_to = c.scene.objects[self.map_to_mesh];
             btree = BVHTree.FromObject(map_to, c.scene);
             n_count = len(owner_mesh.data.vertices);
+            self.mapped_points.clear();
             for vid, v in enumerate(owner_mesh.data.vertices):
                 mapped_point = self.mapped_points.add();
                 x, y, z = v.co.to_tuple();
@@ -231,7 +232,7 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                 
                 lap_mod = apply_on_mesh.modifiers.new(name=vertex_group.name, type='LAPLACIANDEFORM');
                 lap_mod.vertex_group = vertex_group.name;
-                lap_mod.iterations = 1;
+                lap_mod.iterations = 3;#its was 1 before
                 
                 bpy.ops.object.select_all(action="DESELECT");
                 apply_on_mesh.select = True;
@@ -273,7 +274,7 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
         mapping = to_mesh.surfacemappingsbvh.add();
         mapping.name = self.name;
         mapping.map_to_mesh = self.map_to_mesh;
-        
+        mapping.mapped_points.clear();
         for mapped_point in self.mapped_points:
             mpoint = mapping.mapped_points.add();
             mpoint.is_valid = mapped_point.is_valid;
