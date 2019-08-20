@@ -669,7 +669,7 @@ def setMeshVPOS(mesh, vpos):
             print(index, vect);
             mesh.data.vertices[index].co = vect[0];
             raise ValueError;
-            
+    mesh.data.update();
 
 def getMeshVPos(mesh, extra_points=[]):
     vpos = [];
