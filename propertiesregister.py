@@ -1,4 +1,4 @@
-import bpy;
+import os, bpy;
 
 
 import numpy as np;
@@ -14,9 +14,12 @@ from GenericMarkerCreator.misc.meshmathutils import getBarycentricCoordinateFrom
 from GenericMarkerCreator.misc.mathandmatrices import getDuplicatedObject, getMeshVPos, setMeshVPOS, getWKSLaplacianMatrixCotangent, getColumnFilledMatrix;
 from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptable;
 
+from GenericMarkerCreator.misc.mappingutilities import deformWithMapping;
+
 #To enable edit/removal button in the custom properties panel of Blender
 #its necessary to remove the property assignment to entities such as scene, object etc,
 #From the register routine.
+
 
 def updateMeanCurvatures(self, context):
     if(self.post_process_colors):
@@ -140,6 +143,7 @@ class VertexMapping(bpy.types.PropertyGroup):
     is_valid = bpy.props.BoolProperty(name="Is Valid?", description="Is this a valid mapping point", default=True);
     
 class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
+    mapping_name = bpy.props.StringProperty(name='Map Name', description="Maping Name", default='Mapping');
     map_to_mesh = bpy.props.StringProperty(name='Map To', description="Map to Mesh surface name", default='--');
     mapped_points = bpy.props.CollectionProperty(type=VertexMapping);
     apply_on_duplicate = bpy.props.BoolProperty(name="Apply Duplicate", description="Apply the mapping to deform on duplicate", default=True);
@@ -147,6 +151,8 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
     def constructMapping(self):
         c = bpy.context;
         owner_mesh = self.id_data;
+        if(not createmapping):
+            return;
         try:
             map_to = c.scene.objects[self.map_to_mesh];
             btree = BVHTree.FromObject(map_to, c.scene);
@@ -180,88 +186,16 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
             
             if(self.apply_on_duplicate):
                 try:
-                    apply_on_mesh = c.scene.objects["%s-mapped-shape-%s"%(owner_mesh.name, self.name)];
+                    apply_on_mesh = c.scene.objects["%s-%s-%s"%(owner_mesh.name, self.mapping_name, self.name)];
                 except KeyError:
-                    apply_on_mesh = getDuplicatedObject(c, owner_mesh, meshname="%s-mapped-shape-%s"%(owner_mesh.name, self.name));
+                    apply_on_mesh = getDuplicatedObject(c, owner_mesh, meshname="%s-%s-%s"%(owner_mesh.name, self.mapping_name, self.name));
             
-            constraint_positions = [];
-            constraint_ids = [];
-            invalid_indices = [];
-            
-            for vid, mapped_point in enumerate(self.mapped_points):
-                if(mapped_point.is_valid):
-                    co = getGeneralCartesianFromBarycentre(mapped_point.bary_ratios, [map_to.data.vertices[m_vid].co for m_vid in mapped_point.bary_indices]);
-#                     apply_on_mesh.data.vertices[vid].co = co;
-                    constraint_ids.append(vid);
-                    constraint_positions.append(co.to_tuple());
-                else:
-                    invalid_indices.append(vid);
-            
-            constraint_positions = np.array(constraint_positions, dtype=np.float);
-            constraint_ids = np.array(constraint_ids, dtype=np.int);
-            invalid_indices = np.array(invalid_indices, dtype=np.int);
-            vpos = getMeshVPos(apply_on_mesh);
-            print('TOTAL VERTICES : #%s, INVALID INDICES : #%s'%(vpos.shape[0], invalid_indices.shape[0], ))
-#             if(invalid_indices.shape[0] > 0 and invalid_indices.shape[0] != vpos.shape[0]):       
-#                 print('SOLVE WITH LAPLACIAN FOR INVALID MAPPING INDICES');   
-#                 originalL = getWKSLaplacianMatrixCotangent(c, apply_on_mesh);
-#                 delta_cos = originalL.dot(vpos);
-#                 print(delta_cos.shape, constraint_positions.shape);
-#                 extra_weights = getColumnFilledMatrix(constraint_ids, np.ones((constraint_ids.shape[0]), dtype=np.float), constraint_ids.shape[0], vpos.shape[0]);
-#                 L = spsp.vstack([originalL, extra_weights]);
-#                 delta = np.vstack((delta_cos, constraint_positions));
-#                 
-#                 n_count = L.shape[1];
-#                 final_v_pos = np.zeros((n_count, 3));
-#                 for i in range(3):
-#                     final_v_pos[:, i] = lsqr(L, delta[:, i])[0];                    
-#                 setMeshVPOS(apply_on_mesh, final_v_pos);
-            
-            if(invalid_indices.shape[0] > 0 and invalid_indices.shape[0] != vpos.shape[0]):       
-                print('SOLVE WITH LSE FOR INVALID MAPPING INDICES');   
-                v_group_name='Mapping-LSE-deformer';
-        
-                if(None == apply_on_mesh.vertex_groups.get(v_group_name)):
-                    apply_on_mesh.vertex_groups.new(name=v_group_name);
-                
-                group_ind = apply_on_mesh.vertex_groups[v_group_name].index;
-                vertex_group = apply_on_mesh.vertex_groups[group_ind];    
-                vertex_group.remove([v.index for v in apply_on_mesh.data.vertices]);
-                apply_on_mesh.modifiers.clear();
-                vertex_group.add(constraint_ids.tolist(), 1.0, 'REPLACE');
-                
-                lap_mod = apply_on_mesh.modifiers.new(name=vertex_group.name, type='LAPLACIANDEFORM');
-                lap_mod.vertex_group = vertex_group.name;
-                lap_mod.iterations = 3;#its was 1 before
-                
-                bpy.ops.object.select_all(action="DESELECT");
-                apply_on_mesh.select = True;
-                c.scene.objects.active = apply_on_mesh;
-                
-                bpy.ops.object.laplaciandeform_bind(modifier=lap_mod.name);
-                
-                bm = getBMMesh(c, apply_on_mesh, useeditmode=False);
-                ensurelookuptable(bm);
-                for i in range(constraint_ids.shape[0]):
-                    vid = constraint_ids[i];
-                    bm.verts[vid].co = constraint_positions[i];
-                
-                bm.to_mesh(apply_on_mesh.data);
-                bm.free();
-                bpy.ops.object.modifier_apply(modifier=v_group_name);
-            
-            elif(invalid_indices.shape[0] == vpos.shape[0]):
-                print('NO SOLUTION TO THIS SYSTEM WITH MAPPING');
-            else:
-                setMeshVPOS(apply_on_mesh, constraint_positions);
-                    
-            return apply_on_mesh, getMeshVPos(apply_on_mesh);
+            mapped_positions = deformWithMapping(c, owner_mesh, map_to, apply_on_mesh, self.mapped_points);                                
+            return apply_on_mesh, mapped_positions;
         
         except KeyError:
             print('MAP TO MESH NEEDS TO BE SET BEFORE CONSTRUCTING A MAPPING');
-            raise;
-        
-        
+            raise;        
         
     def copyMappingToMesh(self, to_mesh):        
         from_mesh = self.id_data;
@@ -283,12 +217,159 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                 mpoint.bary_ratios = [r for r in mapped_point.bary_ratios]; 
         
         return mapping;
+
+
+class VertexToSurfaceMapping(bpy.types.PropertyGroup):
+    mapping_name = bpy.props.StringProperty(name='Map Name', description="Maping Name", default='Mapping');
+    map_to_mesh = bpy.props.StringProperty(name='Map To', description="Map to Mesh surface name", default='--');
+    mapped_points = bpy.props.CollectionProperty(type=VertexMapping);
+    apply_on_duplicate = bpy.props.BoolProperty(name="Apply Duplicate", description="Apply the mapping to deform on duplicate", default=True);
+    mapping_is_valid = bpy.props.BoolProperty(name="Mapping Valid", description="Is the Mapping Valid?", default=False);
+    file_path = bpy.props.StringProperty(name="Mapping File", description="Location of the mapping file", subtype='FILE_PATH', default='mapping.map');
+    export_file_path = bpy.props.StringProperty(name="Export Mapping File", description="Location of the mapping file", subtype='FILE_PATH', default='mapping.map');
     
+    def constructFromFile(self, mapping_file_path, owner_mesh, map_to):
+        n_count = len(owner_mesh.data.vertices);
+        self.mapped_points.clear();
+        
+#         np_file = np.loadtxt(mapping_file_path, dtype={'names':['index','u','v','w'], 'formats':[int, float, float, float]});
+#         np_file = np.loadtxt(mapping_file_path, dtype={'names':['index','u','v','w'], 'formats':[int, float, float, float]});
+        
+        np_file = np.loadtxt(mapping_file_path, dtype=None);
+        isTriangleMapped = (np_file.shape[1] == 4);
+        isVertexMapped =  (np_file.shape[1] == 6);
+        
+        if(isTriangleMapped):
+            ids = np_file[:,0].astype(int);
+            ratios = np_file[:,-3:].astype(float);
+        elif(isVertexMapped):
+            ids = np_file[:,:3].astype('int');
+            ratios = np_file[:,-3:].astype(float);
+        
+        print(ids.shape, ids[0]);
+        loops = map_to.data.loops;
+        vertices = map_to.data.vertices;
+        
+        for vid, v in enumerate(owner_mesh.data.vertices):
+            mapped_point = self.mapped_points.add();
+            if(isTriangleMapped):
+                fid = ids[vid];
+                u, v, w = ratios[vid];
+                face = map_to.data.polygons[fid];
+                vids = [loops[lid].vertex_index for lid in face.loop_indices];
+                vid1, vid2, vid3 = vids;
+            elif(isVertexMapped):
+                vid1, vid2, vid3 = [int(ii) for ii in ids[vid]];
+                u, v, w = ratios[vid];
+                                    
+            mapped_point.bary_ratios = [u, v, w];
+            mapped_point.bary_indices = [vid1, vid2, vid3];
+        
+        self.mapping_is_valid = True;
+        return True;
+    
+    def constructMappingBVH(self, owner_mesh, map_to):
+        c = bpy.context;
+        btree = BVHTree.FromObject(map_to, c.scene);
+        n_count = len(owner_mesh.data.vertices);
+        self.mapped_points.clear();
+        for vid, v in enumerate(owner_mesh.data.vertices):
+            mapped_point = self.mapped_points.add();
+            x, y, z = v.co.to_tuple();
+            co, n, i, d = btree.find_nearest(Vector((x,y,z)));
+            if(co and n and i and d):
+                face = map_to.data.polygons[i];
+                u,v,w,ratio, isinside, vid1, vid2, vid3 = getBarycentricCoordinateFromPolygonFace(co, face, map_to, snapping=False, extra_info = True);
+                mapped_point.bary_ratios = [u, v, w];
+                mapped_point.bary_indices = [vid1, vid2, vid3];
+            else:
+                mapped_point.is_valid = False;
+        
+        self.mapping_is_valid = True;
+        return True;
+    
+    def constructMapping(self):
+        c = bpy.context;
+        mapping_file_path = bpy.path.abspath(self.file_path);
+        try:
+            owner_mesh = self.id_data;
+            map_to = c.scene.objects[self.map_to_mesh];        
+        except KeyError:
+            print('MAP TO MESH NEEDS TO BE SET BEFORE CONSTRUCTING A MAPPING');
+            raise KeyError;
+        
+        if(os.path.exists(mapping_file_path)):
+            return self.constructFromFile(mapping_file_path, owner_mesh, map_to);
+        else:
+            print('USE BVH TO CONSTRUCT THE MAPPING');
+            return self.constructMappingBVH(owner_mesh, map_to);
+            
+        return False;
+    
+    def exportMapping(self):
+        export_mapping_file_path = bpy.path.abspath(self.export_file_path);
+        owner_mesh = self.id_data;
+        entries = [];
+        for vid, mapped_point in enumerate(self.mapped_points):
+            if(mapped_point.is_valid):
+                u,v,w = mapped_point.bary_ratios;
+                vid1,vid2,vid3 = mapped_point.bary_indices;
+                entries.append([vid1,vid2,vid3,u,v,w]);
+            else:
+                entries.append([0,0,0,0.0,0.0,0.0]);        
+        
+        entries = np.array(entries);   
+        np.savetxt(export_mapping_file_path, entries);
+        
+        
+    def deformWithMapping(self):
+        print('DEFORM WITH MAPPING (UPLIFTING)');
+        c = bpy.context;
+        owner_mesh = self.id_data;
+        try:
+            map_to = c.scene.objects[self.map_to_mesh];
+            apply_on_mesh = owner_mesh;
+            
+            if(self.apply_on_duplicate):
+                try:
+                    apply_on_mesh = c.scene.objects["%s-%s-%s"%(owner_mesh.name, self.mapping_name, map_to.name)];
+                except KeyError:
+                    apply_on_mesh = getDuplicatedObject(c, owner_mesh, meshname="%s-%s-%s"%(owner_mesh.name, self.mapping_name, map_to.name));
+            
+            mapped_positions = deformWithMapping(c, owner_mesh, map_to, apply_on_mesh, self.mapped_points);            
+            return apply_on_mesh, mapped_positions;
+        
+        except KeyError:
+            print('MAP TO MESH NEEDS TO BE SET BEFORE CONSTRUCTING A MAPPING');
+            raise;        
+        
+    def copyMappingToMesh(self, to_mesh):        
+        from_mesh = self.id_data;
+        try:
+            assert (len(from_mesh.data.vertices) == len(to_mesh.data.vertices));
+        except AssertionError:
+            print(('Meshes %s and %s should have same connectivity'%(from_mesh.name, to_mesh.name)).upper());
+            raise;
+        
+        mapping = to_mesh.surfacemappingsbvh.add();
+        mapping.name = self.name;
+        mapping.map_to_mesh = self.map_to_mesh;
+        mapping.mapped_points.clear();
+        for mapped_point in self.mapped_points:
+            mpoint = mapping.mapped_points.add();
+            mpoint.is_valid = mapped_point.is_valid;
+            if(mpoint.is_valid):
+                mpoint.bary_indices = [id for id in mapped_point.bary_indices];
+                mpoint.bary_ratios = [r for r in mapped_point.bary_ratios]; 
+        
+        return mapping;
+
 def register():
     bpy.utils.register_class(GenericLandmark);    
     bpy.utils.register_class(GenericPointSignature);        
     bpy.utils.register_class(VertexMapping);  
-    bpy.utils.register_class(VertexToSurfaceMappingBVH);  
+    bpy.utils.register_class(VertexToSurfaceMappingBVH);
+    bpy.utils.register_class(VertexToSurfaceMapping);  
     
     bpy.types.Object.snap_landmarks = bpy.props.BoolProperty(name="Snap Landmarks", description="Flag to enable/disable snapping", default=False);
         
@@ -350,6 +431,13 @@ def register():
     bpy.types.Object.wks_signatures = bpy.props.CollectionProperty(type=GenericPointSignature);
     bpy.types.Object.gisif_signatures = bpy.props.CollectionProperty(type=GenericPointSignature);
     bpy.types.Object.surfacemappingsbvh = bpy.props.CollectionProperty(type=VertexToSurfaceMappingBVH);
+    bpy.types.Object.surfacemappings = bpy.props.CollectionProperty(type=VertexToSurfaceMapping);
+    
+    bpy.types.Object.multimappings_entries_count = bpy.props.IntProperty(
+    name="MultiMappings Count",
+    description="Number of mappings for a mesh",
+    default=0
+    );
     
     bpy.types.Object.signatures_dir = bpy.props.StringProperty(name="Directory Signatures", description="Directory where the signatures and the pca space is saved", subtype="DIR_PATH", default="//");
     
@@ -360,5 +448,6 @@ def unregister():
     bpy.utils.unregister_class(GenericLandmark);
     bpy.utils.unregister_class(GenericPointSignature);
     bpy.utils.unregister_class(VertexMapping);  
-    bpy.utils.unregister_class(VertexToSurfaceMappingBVH);  
+    bpy.utils.unregister_class(VertexToSurfaceMappingBVH);
+    bpy.utils.unregister_class(VertexToSurfaceMapping);
     
