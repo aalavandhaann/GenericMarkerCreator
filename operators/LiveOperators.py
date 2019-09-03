@@ -128,7 +128,8 @@ class LiveLandmarksCreator(bpy.types.Operator):
                                 b = vertices[loops[face.loop_indices[1]].vertex_index];
                                 c = vertices[loops[face.loop_indices[2]].vertex_index];
                                 u,v,w,ratio,isinside = getBarycentricCoordinate(co, a.co, b.co, c.co, snapping=the_mesh.snap_landmarks);
-                                addConstraint(context, the_mesh, [u,v,w], [a.index, b.index, c.index], co, faceindex=face_index);
+#                                 addConstraint(context, the_mesh, [u,v,w], [a.index, b.index, c.index], co, faceindex=face_index);
+                                addConstraint(context, the_mesh, [u,v,w], [a.index, b.index, c.index], co, faceindex=face.index);
                                 print('ADD MIRROR MARKER AT ', center, u, v, w);
                                 print('IT HAS A NEAREST FACE : ', index, ' AT A DISTANCE ::: ', distance);
                 
