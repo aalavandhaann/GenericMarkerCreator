@@ -8,7 +8,7 @@ import gc
 # and open the template in the editor.
 
 import bpy, time;
-
+import numpy as np;
 from bpy.props import StringProperty;
 from bpy.props import FloatVectorProperty;
 from mathutils import Vector;
@@ -207,6 +207,47 @@ class ReorderLandmarks(bpy.types.Operator):
         
         return {'FINISHED'};
     
+# Button
+class SnapLandmarksToVertex(bpy.types.Operator):
+    bl_idname = "genericlandmarks.snaplandmarkstovertex";
+    bl_label = "Snap Landmarks";
+    bl_space_type = "VIEW_3D";
+    bl_region_type = "UI";
+    bl_context = "objectmode";
+    
+    currentobject = bpy.props.StringProperty(name="Initialize for Object", default = "--");
+    
+    def snapLandmarks(self, context, mesh):
+        for gm in mesh.generic_landmarks:
+            v_indices = [i for i in gm.v_indices];
+            v_ratios = [r for r in gm.v_ratios];
+            nearest_index = np.argmax(v_ratios);
+            
+            gm.v_ratios = [0.0, 0.0, 0.0];
+            gm.v_ratios[nearest_index] = 1.0;
+        
+        tempmarkersource = context.scene.landmarks_use_selection;
+        if(tempmarkersource.strip() is ""):
+                tempmarkersource = "~PRIMITIVE~";    
+        bpy.ops.genericlandmarks.createlandmarks('EXEC_DEFAULT',currentobject=mesh.name, markersource=tempmarkersource);
+    
+    def execute(self, context):        
+        try:            
+            mesh = bpy.data.objects[self.currentobject];
+        except:
+            mesh = context.active_object;
+            
+        if(mesh is not None):
+            M, N = detectMN(mesh);
+            if(not M and not N):
+                M = mesh;
+                self.snapLandmarks(context, M);
+            else:    
+                self.snapLandmarks(context, M);
+                self.snapLandmarks(context, N);
+        
+        return {'FINISHED'};
+
 
 class ChangeLandmarks(bpy.types.Operator):
     bl_idname = "genericlandmarks.changelandmarks";

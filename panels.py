@@ -4,7 +4,7 @@ from GenericMarkerCreator.misc.staticutilities import getMeshForBlenderMarker;
 from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator, SignaturesMatching;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
-ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID;
+ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID, SnapLandmarksToVertex;
 from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks,SpectralFeatures, MeanCurvatures;
 
 class SpectralGeneralPanel(bpy.types.Panel):
@@ -185,6 +185,9 @@ class LandmarksPanel(bpy.types.Panel):
                 
                 row = box.row();
                 row.operator(ReorderLandmarks.bl_idname);
+                
+                row = box.row();
+                row.operator(SnapLandmarksToVertex.bl_idname);
                 
                 row = box.row();
                 row.operator(AutoLinkLandmarksByID.bl_idname);
