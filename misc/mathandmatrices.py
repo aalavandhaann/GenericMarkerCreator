@@ -6,6 +6,44 @@ from scipy.sparse.linalg import eigsh;
 
 from mathutils import Vector;
 
+# the representation of a point will be a tuple (x,y)
+# the representation of a polygon wil be a list of points [(x1,y1), (x2,y2), (x3,y3), ... ]
+# it is assumed that polygon is regular i.e. lines don't intersect each other (otherwise, it is questionable whether it is a polygon)
+#-------------------------------------------------------------------------------
+# isLeft(): tests if a point is Left|On|Right of an infinite line.
+#    Input:  three points P0, P1, and P2
+#    Return: >0 for P2 left of the line through P0 and P1
+#            =0 for P2  on the line
+#            <0 for P2  right of the line
+def isLeft(P0, P1, P2):
+    return ((P1[0] - P0[0]) * (P2[1] - P0[1]) - (P2[0] - P0[0]) * (P1[1] - P0[1]))
+
+
+#-------------------------------------------------------------------------------
+# wn_PnPoly(): winding number test for a point in a polygon
+#      Input:   P = a point,
+#               V[] = vertex points of a polygon V[n+1] with V[n]=V[0]
+#      Return:  wn = the winding number (=0 only when P is outside)
+# Taken from: http://geomalgorithms.com/a03-_inclusion.html
+def winding_number_PointInsidePoly(P, V):
+    n = len(V)-1
+    wn = 0;    # the  winding number counter
+    i = 0
+    # loop through all edges of the polygon
+    while i<n:   # edge from V[i] to  V[i+1]
+        if V[i][1] <= P[1]:         # start y <= P.y
+            if V[i+1][1]  > P[1]:      # an upward crossing
+                if isLeft(V[i], V[i+1], P) > 0:  # P left of  edge
+                    wn += 1            # have  a valid up intersect
+        else:                        # start y > P.y (no test needed)
+            if V[i+1][1] <= P[1]:     # a downward crossing
+                if isLeft(V[i], V[i+1], P) < 0:  # P right of  edge
+                    wn -= 1            # have  a valid down intersect
+        i += 1
+    #print str(wn)
+    return wn;
+
+
 #Return object bounds as minvector and maxvector
 def getObjectBounds(mesh):
     minx = miny = minz = 9999999999999999;
