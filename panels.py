@@ -4,7 +4,8 @@ from GenericMarkerCreator.misc.staticutilities import getMeshForBlenderMarker;
 from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator, SignaturesMatching;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
-ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID, SnapLandmarksToVertex;
+ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID, SnapLandmarksToVertex, \
+LoadBIMLandmarks;
 from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks,SpectralFeatures, MeanCurvatures;
 
 class SpectralGeneralPanel(bpy.types.Panel):
@@ -163,11 +164,21 @@ class LandmarksPanel(bpy.types.Panel):
             box = layout.box();
             box.label('Global properties');
             row = box.row();
-            row.prop(context.scene, 'use_mirrormode_x');       
+            row.prop(context.scene, 'use_mirrormode_x');
             row.prop(context.scene, 'landmarks_use_selection');
             
             row = box.row();
             row.prop(context.active_object, 'snap_landmarks');
+            
+            box = layout.box();
+            box.label('Load Landmarks from a file');
+            
+            row = box.row(align=True);
+            col = row.column(align=True);
+            col.prop(context.active_object, 'landmarks_file');
+            
+            col = row.column(align=True);
+            col.operator(LoadBIMLandmarks.bl_idname);
             
             if(len(context.active_object.generic_landmarks)):
                 box = layout.box();
@@ -238,8 +249,8 @@ class LandmarksPanel(bpy.types.Panel):
                     row.operator(LinkLandmarks.bl_idname);
                     
                     row = box.row();
-                    row.operator(UnLinkLandmarks.bl_idname);            
-
+                    row.operator(UnLinkLandmarks.bl_idname);                
+                
 
 class PanelHelpAddMappingFromFile(bpy.types.Operator):
     bl_idname = "ashok.panel_help_add_mapping_from_file";
@@ -486,13 +497,13 @@ class MultiMappings_ui_entries(bpy.types.UIList):
 
 class MappingFromFilePanel(bpy.types.Panel):
     bl_idname = "OBJECT_PT_mappingfromfilepanel"
-    bl_label = "Generic Landmarks";
+    bl_label = "Surface mapping";
     bl_space_type = "VIEW_3D";
     bl_region_type = "TOOLS";
 #     bl_space_type = 'PROPERTIES'
 #     bl_region_type = "WINDOW";
     bl_category = "Generic Landmarks"
-    bl_description = "Panel to create adding of mappings";
+    bl_description = "Panel to create loading of mappings between two surfaces";
     
     def draw(self, context):
         if(context.active_object):

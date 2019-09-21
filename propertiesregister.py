@@ -441,6 +441,10 @@ def register():
     
     bpy.types.Object.signatures_dir = bpy.props.StringProperty(name="Directory Signatures", description="Directory where the signatures and the pca space is saved", subtype="DIR_PATH", default="//");
     
+    bpy.types.Object.landmarks_file = bpy.props.StringProperty(name="Landmarks File", 
+                                                               description="Landmark file that contains the landmarks information as combination of faceid and barycentric coordinates or vertex indices with barycentric coordinaties", 
+                                                               subtype="FILE_PATH", default="//");
+    
     bpy.types.Scene.use_mirrormode_x = bpy.props.BoolProperty(name="Mirror Mode X", description="Use mirror mode on X-Axis", default=True);
     bpy.types.Scene.landmarks_use_selection = bpy.props.EnumProperty(name = "Landmarks List", items = get_marker_meshes, description = "Meshes available in the Blender scene to be used for as landmark mesh");
     

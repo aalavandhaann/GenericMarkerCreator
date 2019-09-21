@@ -92,6 +92,9 @@ class CreateLandmarks(bpy.types.Operator):
         
         temp = -1;
         
+        mesh_loops = mesh.data.loops;
+        mesh_faces = mesh.data.polygons;
+        
         for index, marker in enumerate(mesh.generic_landmarks):            
             markername = mesh.name + "_marker_"+str(marker.id);
             try:
@@ -100,6 +103,9 @@ class CreateLandmarks(bpy.types.Operator):
             except:
                 createmarker = True;
             
+            if(marker.v_indices[0] == -1 and marker.v_indices[1] == -1 and marker.v_indices[-2] == -1):
+                marker.v_indices[0], marker.v_indices[1], marker.v_indices[2] = [mesh_loops[lid].vertex_index for lid in mesh_faces[marker.faceindex].loop_indices];                
+                
             vertex1 = mesh.data.vertices[marker.v_indices[0]].co;
             vertex2 = mesh.data.vertices[marker.v_indices[1]].co;
             vertex3 = mesh.data.vertices[marker.v_indices[2]].co;
@@ -311,7 +317,9 @@ class AutoLinkLandmarksByID(bpy.types.Operator):
                         bpy.ops.genericlandmarks.linklandmarks('EXEC_DEFAULT', marker_1=M_marker.name, marker_2=N_marker.name);
                     except ValueError:
                         pass;
-                    
+            else:
+                message = "Autolink Landmarks can be applied only to mesh pairs with a bijective landmarks correspondence";
+                bpy.ops.genericlandmarks.messagebox('INVOKE_DEFAULT',messagetype='ERROR',message=message,messagelinesize=60);
         return {'FINISHED'};
     
 class UnLinkLandmarks(bpy.types.Operator):
@@ -719,8 +727,43 @@ class TransferLandmarkNames(bpy.types.Operator):
         return {'FINISHED'};
 
 
+class LoadBIMLandmarks(bpy.types.Operator):
+    """Store the object names in the order they are selected, """ \
+    """use RETURN key to confirm selection, ESCAPE key to cancel"""
+    bl_idname = "genericlandmarks.loadbimlandmarks";
+    bl_label = "BIM Landmarks";
+    bl_options = {'UNDO'};
+    bl_description="Load Bim Landmarks from the .agd files";
+    currentobject = bpy.props.StringProperty(name="A mesh with markers", default = "--");
 
-
-
+    
+    def execute(self, context):
+        try:            
+            mesh = bpy.data.objects[self.currentobject];
+        except:
+            mesh = context.active_object;
+            
+        if(mesh is not None):
+            current_ids = [gm.id for gm in mesh.generic_landmarks];   
+            # unselect all  
+            f = open(bpy.path.abspath(mesh.landmarks_file));
+            
+            lines = f.readlines()[1:];
+            
+            for line in lines:
+                _, tid, bratio1, bratio2, bratio3 = line.split(' ');
+                marker = mesh.generic_landmarks.add();
+                marker.id = mesh.total_landmarks;
+                marker.linked_id = -1;
+                marker.faceindex = int(tid);
+                marker.v_ratios = [float(bratio1), float(bratio2), float(bratio3)];
+                marker.landmark_name = 'BIM:%s'%(marker.id);
+                mesh.total_landmarks += 1;
+                
+            f.close();
+            
+            bpy.ops.genericlandmarks.changelandmarks('EXEC_DEFAULT', currentobject=self.currentobject);            
+            
+        return{'FINISHED'};
 
 
