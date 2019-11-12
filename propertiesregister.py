@@ -236,8 +236,18 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
 #         np_file = np.loadtxt(mapping_file_path, dtype={'names':['index','u','v','w'], 'formats':[int, float, float, float]});
         
         np_file = np.loadtxt(mapping_file_path, dtype=None);
-        isTriangleMapped = (np_file.shape[1] == 4);
-        isVertexMapped =  (np_file.shape[1] == 6);
+        isTriangleMapped = False;
+        isVertexMapped = False;
+        isVertexToVertexMapped = False;
+        
+        try:
+            isTriangleMapped = (np_file.shape[1] == 4);
+            isVertexMapped =  (np_file.shape[1] == 6);
+        except IndexError:
+            isVertexToVertexMapped = True;
+            ids = np_file;
+            bm = getBMMesh(bpy.context, map_to, useeditmode=False);
+            ensurelookuptable(bm);
         
         if(isTriangleMapped):
             ids = np_file[:,0].astype(int);
@@ -251,7 +261,7 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
         vertices = map_to.data.vertices;
         
         for vid, v in enumerate(owner_mesh.data.vertices):
-            mapped_point = self.mapped_points.add();
+            mapped_point = self.mapped_points.add();            
             if(isTriangleMapped):
                 fid = ids[vid];
                 u, v, w = ratios[vid];
@@ -261,11 +271,24 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
             elif(isVertexMapped):
                 vid1, vid2, vid3 = [int(ii) for ii in ids[vid]];
                 u, v, w = ratios[vid];
-                                    
+            elif(isVertexToVertexMapped):
+                useVertexTargetId = int(ids[vid]);
+                bmface = bm.verts[useVertexTargetId].link_faces[0];
+                t_verts = [l.vert.index for l in bmface.loops];
+                t_ratios = [0.0, 0.0, 0.0];
+                t_ratios[t_verts.index(useVertexTargetId)] = 1.0;
+                vid1, vid2, vid3 = t_verts;
+                u, v, w = t_ratios;
+            
             mapped_point.bary_ratios = [u, v, w];
             mapped_point.bary_indices = [vid1, vid2, vid3];
         
         self.mapping_is_valid = True;
+        try:
+            bm.free();
+        except NameError:
+            pass;
+        
         return True;
     
     def constructMappingBVH(self, owner_mesh, map_to):
