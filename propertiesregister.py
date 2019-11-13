@@ -273,15 +273,18 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
                 u, v, w = ratios[vid];
             elif(isVertexToVertexMapped):
                 useVertexTargetId = int(ids[vid]);
-                bmface = bm.verts[useVertexTargetId].link_faces[0];
-                t_verts = [l.vert.index for l in bmface.loops];
-                t_ratios = [0.0, 0.0, 0.0];
-                t_ratios[t_verts.index(useVertexTargetId)] = 1.0;
-                vid1, vid2, vid3 = t_verts;
-                u, v, w = t_ratios;
-            
-            mapped_point.bary_ratios = [u, v, w];
-            mapped_point.bary_indices = [vid1, vid2, vid3];
+                if(useVertexTargetId != -1):
+                    bmface = bm.verts[useVertexTargetId].link_faces[0];
+                    t_verts = [l.vert.index for l in bmface.loops];
+                    t_ratios = [0.0, 0.0, 0.0];
+                    t_ratios[t_verts.index(useVertexTargetId)] = 1.0;
+                    vid1, vid2, vid3 = t_verts;
+                    u, v, w = t_ratios;
+                else:
+                    mapped_point.is_valid = False;
+            if(mapped_point.is_valid):
+                mapped_point.bary_ratios = [u, v, w];
+                mapped_point.bary_indices = [vid1, vid2, vid3];
         
         self.mapping_is_valid = True;
         try:
@@ -324,7 +327,7 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
         if(os.path.exists(mapping_file_path)):
             return self.constructFromFile(mapping_file_path, owner_mesh, map_to);
         else:
-            print('USE BVH TO CONSTRUCT THE MAPPING');
+            print('USE BVH TO CONSTRUCT THE MAPPING BECAUSE THE MAPPING FILE DOES ');
             return self.constructMappingBVH(owner_mesh, map_to);
             
         return False;
