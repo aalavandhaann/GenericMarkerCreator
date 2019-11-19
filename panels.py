@@ -77,8 +77,14 @@ class HKSPanel(bpy.types.Panel):
             box = layout.box();
             box.label('HKS');
             row = box.row();       
+            
             row.prop(context.active_object, 'hks_t');
             row.prop(context.active_object, 'hks_current_t');
+            
+            row = box.row();
+            row.prop(context.active_object, 'hks_log_start');
+            row.prop(context.active_object, 'hks_log_end');
+            
             row.prop(context.active_object, 'live_hks');
             row = box.row();
             row.operator(SpectralHKS.bl_idname);

@@ -99,8 +99,9 @@ def getHKSEigens(mesh, L, K=5, t=20.0, *,eva=None, eve=None, A = None):
     return eva, eve;
 
 #eigenvalues, eigenvectors, the diagonal matrix M, and times for which HKS is propogated;
-def get_hks(eival, eivec,mat_M, num_times=100):
-    times = np.logspace(np.log(0.1),np.log(10),num=num_times);
+def get_hks(eival, eivec,mat_M, num_times=100, log_start_value = 0.1, log_end_value=10.0):
+#     times = np.logspace(np.log(0.1),np.log(10.0),num=num_times);
+    times = np.logspace(np.log(log_start_value),np.log(log_end_value),num=num_times);
     vertex_areas = spsp.csr_matrix(mat_M).data;
     k = np.zeros((eivec.shape[0],len(times)))
     for idx,t in enumerate(times):
@@ -165,7 +166,7 @@ def getWKS(mesh, eva, eve, WKS_E=10, wks_variance=6):
     return WKS;
 
 
-def getHKSColors(context, mesh, K=5, HKS_T=20.0, HKS_CURRENT_T = 20):
+def getHKSColors(context, mesh, K=5, HKS_T=20.0, HKS_CURRENT_T = 20, HKS_LOG_START=0.1, HKS_LOG_END=10.0):
     K = min(len(mesh.data.vertices)-1, K);
     k_exists, cache_k = getMatrixCache(context, mesh, 'WKS_k');
     
@@ -175,7 +176,9 @@ def getHKSColors(context, mesh, K=5, HKS_T=20.0, HKS_CURRENT_T = 20):
     WKS_EVA_Exists, WKS_EVA = getMatrixCache(context, mesh, 'WKS_eva');
     WKS_EVE_Exists, WKS_EVE = getMatrixCache(context, mesh, 'WKS_eve');
         
-    hks_t_exists, cache_hks_t = getMatrixCache(context, mesh, 'HKS_T');    
+    hks_t_exists, cache_hks_t = getMatrixCache(context, mesh, 'HKS_T'); 
+    hks_log_start_exists, cache_hks_log_start = getMatrixCache(context, mesh, 'HKS_LOG_START');    
+    hks_log_end_exists, cache_hks_log_end = getMatrixCache(context, mesh, 'HKS_LOG_END');       
     hks_matrix_exists, HKS_MATRIX = getMatrixCache(context, mesh, 'HKS_MATRIX');
            
     if(not k_exists):
@@ -200,8 +203,8 @@ def getHKSColors(context, mesh, K=5, HKS_T=20.0, HKS_CURRENT_T = 20):
         setMatrixCache(context, mesh, 'WKS_eva', WKS_EVA);
         setMatrixCache(context, mesh, 'WKS_eve', WKS_EVE);
     
-    if(cache_hks_t != HKS_T or not hks_t_exists or not hks_matrix_exists):
-        HKS_MATRIX = get_hks(WKS_EVA, WKS_EVE, WKS_VORONOI, num_times=HKS_T);
+    if(cache_hks_t != HKS_T or cache_hks_log_start != HKS_LOG_START or cache_hks_log_end != HKS_LOG_END or not hks_t_exists or not hks_matrix_exists or not hks_log_start_exists or not hks_log_end_exists):
+        HKS_MATRIX = get_hks(WKS_EVA, WKS_EVE, WKS_VORONOI, num_times=HKS_T, log_start_value = HKS_LOG_START, log_end_value=HKS_LOG_END);
         setMatrixCache(context, mesh, 'HKS_T', HKS_T);
         setMatrixCache(context, mesh, 'HKS_MATRIX', HKS_MATRIX);
         

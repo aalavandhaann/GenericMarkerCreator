@@ -135,7 +135,7 @@ class SpectralHKS(bpy.types.Operator):
             mesh = context.active_object;
             
         if(mesh is not None):            
-            heat_colors, k = getHKSColors(context, mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t);
+            heat_colors, k = getHKSColors(context, mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t, mesh.hks_log_start, mesh.hks_log_end);
             
             pp = mesh.post_process_colors;
             ppmin = mesh.post_process_min;
@@ -148,7 +148,7 @@ class SpectralHKS(bpy.types.Operator):
 #                 ppmin = paired_mesh.post_process_min;
 #                 ppmax = paired_mesh.post_process_max;
                 if(paired_mesh):
-                    heat_colors, k = getHKSColors(context, paired_mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t);
+                    heat_colors, k = getHKSColors(context, paired_mesh, mesh.eigen_k, mesh.hks_t, mesh.hks_current_t, mesh.hks_log_start, mesh.hks_log_end);
                     applyColoringForMeshErrors(context, paired_mesh, heat_colors, v_group_name='hks', use_weights=False, use_histogram_preprocess=pp, percent_min=ppmin, percent_max=ppmax);
                 
                 

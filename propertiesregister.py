@@ -423,6 +423,9 @@ def register():
     bpy.types.Object.hks_t = bpy.props.FloatProperty(name="HKS Time", description="The time for which the heat dissipation for every point is calculated", default=20.0, min=0.1, update=updateSpectralProperty);
     bpy.types.Object.hks_current_t = bpy.props.IntProperty(name="HKS Current Time", description="The current time of heat dissipation", default=20, min=0, update=updateSpectralProperty);
     
+    bpy.types.Object.hks_log_start = bpy.props.FloatProperty(name="HKS Log Start", description="The Log start value. A logspace is created between logstart and logend.", min=0.0, default=0.1, update=updateSpectralProperty);
+    bpy.types.Object.hks_log_end = bpy.props.FloatProperty(name="HKS Log End", description="The Log end value. A logspace is created between logstart and logend.", min=0.0, default=10.0, update=updateSpectralProperty);
+    
     bpy.types.Object.wks_e = bpy.props.IntProperty(name="WKS Evalautions", description="The Total evaluations for which WKS is calculated", default=100, min=2, step=1,update=updateSpectralProperty);
     bpy.types.Object.wks_current_e = bpy.props.IntProperty(name="WKS Current Evalaution", description="The current evaluation for which WKS is shown", default=0, min=0, step=1,update=updateSpectralProperty);
     bpy.types.Object.wks_variance = bpy.props.FloatProperty(name="WKS variance", description="The WKS variance to consider", default=6.0, min=0.00, update=updateSpectralProperty);
