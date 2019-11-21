@@ -18,6 +18,8 @@ class SpectralGeneralPanel(bpy.types.Panel):
         
     def draw(self, context):
         if(context.active_object):
+            if(context.active_object.type != 'MESH'):
+                return;
             layout = self.layout;
             mainbox = layout.box();
             mainbox.label('Spectral Properties');
@@ -73,6 +75,8 @@ class HKSPanel(bpy.types.Panel):
      
     def draw(self, context):
         if(context.active_object):
+            if(context.active_object.type != 'MESH'):
+                return;
             layout = self.layout;
             box = layout.box();
             box.label('HKS');
@@ -99,6 +103,8 @@ class WKSPanel(bpy.types.Panel):
     
     def draw(self, context):
         if(context.active_object):
+            if(context.active_object.type != 'MESH'):
+                return;
             layout = self.layout;
             box = layout.box();
             box.label('WKS');
@@ -120,6 +126,8 @@ class GISIFPanel(bpy.types.Panel):
     
     def draw(self, context):
         if(context.active_object):
+            if(context.active_object.type != 'MESH'):
+                return;
             layout = self.layout;
             box = layout.box();
             box.label('GISIF');
@@ -166,6 +174,8 @@ class LandmarksPanel(bpy.types.Panel):
     
     def draw(self, context):        
         if(context.active_object):
+            if(context.active_object.type != 'MESH'):
+                return;
             layout = self.layout;
             box = layout.box();
             box.label('Global properties');

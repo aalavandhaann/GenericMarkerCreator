@@ -24,7 +24,58 @@ from GenericMarkerCreator.misc.mappingutilities import deformWithMapping;
 def updateMeanCurvatures(self, context):
     if(self.post_process_colors):
         bpy.ops.genericlandmarks.meancurvatures('EXEC_DEFAULT', currentobject=self.name);
-    
+
+def hasValueChanged(o, key, value):
+    try:
+        print('SELF: %s, KEY: %s, CURRENT : %s, NEW : %s'%(o, key, o[key], value));
+        return (o[key] != value);
+    except KeyError:
+        return True;
+
+def get_hks_t(self):
+    try:
+        return self['hks_t'];
+    except KeyError:
+        return 0;
+def set_hks_t(self, value):
+    flag = hasValueChanged(self, 'hks_t', value);
+    if(flag):
+        self['hks_t'] = value;        
+        if(self.live_hks):
+            bpy.ops.genericlandmarks.spectralhks('EXEC_DEFAULT', currentobject=self.name);
+
+def get_hks_current_t(self):
+    try:
+        return self['hks_current_t'];
+    except KeyError:
+        return 0.0;
+def set_hks_current_t(self, value):
+    if(hasValueChanged(self, 'hks_current_t', value)):
+        self['hks_current_t'] = value;
+        if(self.live_hks):
+            bpy.ops.genericlandmarks.spectralhks('EXEC_DEFAULT', currentobject=self.name);
+
+def get_hks_log_start(self):
+    try:
+        return self['hks_log_start'];
+    except KeyError:
+        return 1e-4;
+def set_hks_log_start(self, value):
+    if(hasValueChanged(self, 'hks_log_start', value)):
+        self['hks_log_start'] = value;    
+        if(self.live_hks):
+            bpy.ops.genericlandmarks.spectralhks('EXEC_DEFAULT', currentobject=self.name);
+
+def get_hks_log_end(self):
+    try:
+        return self['hks_log_end'];
+    except KeyError:
+        return 1.0;
+def set_hks_log_end(self, value):
+    if(hasValueChanged(self, 'hks_log_end', value)):
+        self['hks_log_end'] = value;
+        if(self.live_hks):
+            bpy.ops.genericlandmarks.spectralhks('EXEC_DEFAULT', currentobject=self.name);
 
 def updateSpectralProperty(self, context):
 #     print('WHO AM I : ', self);
@@ -38,7 +89,8 @@ def updateSpectralProperty(self, context):
         bpy.ops.genericlandmarks.spectralshape('EXEC_DEFAULT', currentobject=self.name);
     elif(self.live_gisif):
         bpy.ops.genericlandmarks.spectralgisif('EXEC_DEFAULT', currentobject=self.name);
-        
+    
+    
 def updateNormalMarkerColor(self, context):
     changeMarkerColor(context.active_object);
 
@@ -420,11 +472,10 @@ def register():
     bpy.types.Object.spectral_sync = bpy.props.BoolProperty(name='Spectral Sync', description="flag to sync spectral properties with paired mesh", default=False);
     
     
-    bpy.types.Object.hks_t = bpy.props.FloatProperty(name="HKS Time", description="The time for which the heat dissipation for every point is calculated", default=20.0, min=0.1, update=updateSpectralProperty);
-    bpy.types.Object.hks_current_t = bpy.props.IntProperty(name="HKS Current Time", description="The current time of heat dissipation", default=20, min=0, update=updateSpectralProperty);
-    
-    bpy.types.Object.hks_log_start = bpy.props.FloatProperty(name="HKS Log Start", description="The Log start value. A logspace is created between logstart and logend.", min=0.0, default=0.1, update=updateSpectralProperty);
-    bpy.types.Object.hks_log_end = bpy.props.FloatProperty(name="HKS Log End", description="The Log end value. A logspace is created between logstart and logend.", min=0.0, default=10.0, update=updateSpectralProperty);
+    bpy.types.Object.hks_t = bpy.props.FloatProperty(name="HKS Time", description="The time for which the heat dissipation for every point is calculated", default=20.0, min=0.1, update=updateSpectralProperty, get=get_hks_t, set=set_hks_t);
+    bpy.types.Object.hks_current_t = bpy.props.IntProperty(name="HKS Current Time", description="The current time of heat dissipation", default=20, min=0, update=updateSpectralProperty, get=get_hks_current_t, set=set_hks_current_t);
+    bpy.types.Object.hks_log_start = bpy.props.FloatProperty(name="HKS Log Start", description="The Log start value. A logspace is created between logstart and logend.", min=0.0, default=0.1, get=get_hks_log_start, set=set_hks_log_start, update=updateSpectralProperty);
+    bpy.types.Object.hks_log_end = bpy.props.FloatProperty(name="HKS Log End", description="The Log end value. A logspace is created between logstart and logend.", min=0.0, default=10.0, get=get_hks_log_end, set=set_hks_log_end, update=updateSpectralProperty);
     
     bpy.types.Object.wks_e = bpy.props.IntProperty(name="WKS Evalautions", description="The Total evaluations for which WKS is calculated", default=100, min=2, step=1,update=updateSpectralProperty);
     bpy.types.Object.wks_current_e = bpy.props.IntProperty(name="WKS Current Evalaution", description="The current evaluation for which WKS is shown", default=0, min=0, step=1,update=updateSpectralProperty);
@@ -476,6 +527,9 @@ def register():
     
     bpy.types.Scene.use_mirrormode_x = bpy.props.BoolProperty(name="Mirror Mode X", description="Use mirror mode on X-Axis", default=True);
     bpy.types.Scene.landmarks_use_selection = bpy.props.EnumProperty(name = "Landmarks List", items = get_marker_meshes, description = "Meshes available in the Blender scene to be used for as landmark mesh");
+    
+#     bpy.app.driver_namespace["updateSpectralProperty"] = updateSpectralProperty;
+    
     
 def unregister():    
     bpy.utils.unregister_class(GenericLandmark);
