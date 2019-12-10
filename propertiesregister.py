@@ -167,6 +167,13 @@ def get_marker_meshes(self, context):
 def showHideConstraints(self, context):
     bpy.ops.genericlandmarks.createlandmarks('EXEC_DEFAULT',hidemarkers=True, currentobject = self.name);
 
+class Point(bpy.types.PropertyGroup):
+    index = bpy.props.IntProperty(name = 'index', description="Coordinate index value", default=-1);
+    x = bpy.props.FloatProperty(name = 'x', description="Coordinate X value", default=0.00);
+    y = bpy.props.FloatProperty(name = 'y', description="Coordinate Y value", default=0.00);
+    z = bpy.props.FloatProperty(name = 'z', description="Coordinate Z value", default=0.00);
+    w = bpy.props.FloatProperty(name = 'w', description="Coordinate W value", default=0.00);
+
 class GenericLandmark(bpy.types.PropertyGroup):
     is_linked = bpy.props.BoolProperty(name="Is Linked", description="Flag to check if a landmark is linked", default=False);
     id = bpy.props.IntProperty(name="Landmark Id", description="Index or indentifier that is unique for this landmark", default=-1);
@@ -443,6 +450,7 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
         return mapping;
 
 def register():
+    bpy.utils.register_class(Point);
     bpy.utils.register_class(GenericLandmark);    
     bpy.utils.register_class(GenericPointSignature);        
     bpy.utils.register_class(VertexMapping);  

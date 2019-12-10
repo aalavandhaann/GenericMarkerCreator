@@ -5,7 +5,7 @@ import numpy as np;
 import platform;
 
 from mathutils import Vector, Color;
-from scipy.interpolate.interpolate_wrapper import logarithmic
+# from scipy.interpolate.interpolate_wrapper import logarithmic
 from functools import reduce;
 
 from GenericMarkerCreator.misc.meshmathutils import getKDTree, getBarycentricCoordinate, getBarycentricCoordinateFromPolygonFace;
