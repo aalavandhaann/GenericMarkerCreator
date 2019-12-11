@@ -251,15 +251,15 @@ class LandmarksPanel(bpy.types.Panel):
                 box.label('Global Landmark settings');
                 
                 row = box.row();
+                row.prop(context.active_object, 'edit_landmark_name');
+                
+                row = box.row();
                 row.operator(RemoveLandmarks.bl_idname);
                 
                 belongs_to = getMeshForBlenderMarker(context.active_object);       
                 if(belongs_to.is_landmarked_mesh):
                     box = layout.box();
                     box.label('Mesh Paired Landmark settings');
-                    
-                    row = box.row();
-                    row.prop(context.active_object, 'edit_landmark_name');
                     
                     row = box.row();
                     row.operator(LinkLandmarks.bl_idname);
