@@ -210,8 +210,8 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
     def constructMapping(self):
         c = bpy.context;
         owner_mesh = self.id_data;
-        if(not createmapping):
-            return;
+#         if(not createmapping):
+#             return;
         try:
             map_to = c.scene.objects[self.map_to_mesh];
             btree = BVHTree.FromObject(map_to, c.scene);
@@ -256,7 +256,7 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
             print('MAP TO MESH NEEDS TO BE SET BEFORE CONSTRUCTING A MAPPING');
             raise;        
         
-    def copyMappingToMesh(self, to_mesh):        
+    def copyMappingToMesh(self, to_mesh):
         from_mesh = self.id_data;
         try:
             assert (len(from_mesh.data.vertices) == len(to_mesh.data.vertices));
