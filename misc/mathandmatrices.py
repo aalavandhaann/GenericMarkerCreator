@@ -710,8 +710,10 @@ def setMeshVPOS(mesh, vpos):
     mesh.data.update();
 
 def getMeshVPos(mesh, extra_points=[]):
+    scene = bpy.context.scene;
+    obj_data = mesh.to_mesh(scene, True, 'PREVIEW')
     vpos = [];
-    for v in mesh.data.vertices:
+    for v in obj_data.vertices:
         vpos.append([v.co.x, v.co.y, v.co.z]);
     
     for p in extra_points:
