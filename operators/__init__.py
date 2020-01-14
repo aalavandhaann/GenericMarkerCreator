@@ -21,10 +21,10 @@ from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator, SignaturesMatching;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
 ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID, SnapLandmarksToVertex, \
-LoadBIMLandmarks
+LoadBIMLandmarks, TransferLandmarks
 from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks, SpectralFeatures, MeanCurvatures;
 
-
+from GenericMarkerCreator.operators.GeodesicBones import GeodesicBones;
 
 def register():
     print('OPERATORS BEING REGISTERED -> START');
@@ -41,6 +41,7 @@ def register():
     bpy.utils.register_class(LandmarkStatus);
     bpy.utils.register_class(LandmarksPairFinder);
     bpy.utils.register_class(TransferLandmarkNames);
+    bpy.utils.register_class(TransferLandmarks);
     bpy.utils.register_class(LiveLandmarksCreator);
     bpy.utils.register_class(SignaturesMatching);
     bpy.utils.register_class(AutoLinkLandmarksByID);
@@ -52,6 +53,8 @@ def register():
     bpy.utils.register_class(AddSpectralSignatures);
     bpy.utils.register_class(AddSpectralSignatureLandmarks);
     bpy.utils.register_class(SpectralFeatures);    
+    
+    bpy.utils.register_class(GeodesicBones);
     print('OPERATORS BEING REGISTERED -> END');
 
 def unregister():
@@ -69,6 +72,7 @@ def unregister():
     bpy.utils.unregister_class(LandmarkStatus);
     bpy.utils.unregister_class(LandmarksPairFinder);
     bpy.utils.unregister_class(TransferLandmarkNames);
+    bpy.utils.unregister_class(TransferLandmarks);
     bpy.utils.unregister_class(LiveLandmarksCreator);
     bpy.utils.unregister_class(SignaturesMatching);
     bpy.utils.unregister_class(AutoLinkLandmarksByID);
@@ -80,4 +84,6 @@ def unregister():
     bpy.utils.unregister_class(AddSpectralSignatures);
     bpy.utils.unregister_class(AddSpectralSignatureLandmarks);
     bpy.utils.unregister_class(SpectralFeatures);    
+    
+    bpy.utils.unregister_class(GeodesicBones);
     print('OPERATORS BEING UNREGISTERED -> END');

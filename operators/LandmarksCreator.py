@@ -689,6 +689,38 @@ class LandmarksPairFinder(bpy.types.Operator):
         context.window_manager.modal_handler_add(self);
         return {'RUNNING_MODAL'}
 
+class TransferLandmarks(bpy.types.Operator):
+    """Store the object names in the order they are selected, """ \
+    """use RETURN key to confirm selection, ESCAPE key to cancel"""
+    bl_idname = "genericlandmarks.transferlandmarks";
+    bl_label = "Transfer landmarks";
+    bl_options = {'UNDO'};
+    bl_description="Transfer landmarks to a mesh with same isometry. Transferred landmarks do not contain linking information.";
+    num_selected = 0;
+    
+    def execute(self, context):
+        mesh_selections = [m for m in context.selected_objects if m.type == 'MESH' and m != context.active_object];
+        print(mesh_selections);
+        if(context.active_object and len(mesh_selections) == 1):
+            transfer_from_mesh = mesh_selections[0];
+            transfer_to_mesh = context.active_object;
+            print(transfer_from_mesh, transfer_to_mesh);
+            if(len(transfer_from_mesh.generic_landmarks)):
+                from_mesh, to_mesh = transfer_from_mesh, transfer_to_mesh;
+                to_mesh.generic_landmarks.clear();
+                for from_m in from_mesh.generic_landmarks:
+                    to_m = to_mesh.generic_landmarks.add();
+                    to_m.copyFromLandmark(from_m);
+                
+                to_mesh.total_landmarks = len(to_mesh.generic_landmarks);
+                
+            else:
+                message = "Select the mesh with landmarks and then \nselect to mesh to which the landmarks need to transferred";
+                bpy.ops.genericlandmarks.messagebox('INVOKE_DEFAULT',messagetype='ERROR',message=message,messagelinesize=60);
+                return {'FINISHED'};
+            
+        return {'FINISHED'};
+    
 
 class TransferLandmarkNames(bpy.types.Operator):
     """Store the object names in the order they are selected, """ \

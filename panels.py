@@ -5,8 +5,10 @@ from GenericMarkerCreator.operators.LandmarksPair import AssignMeshPair;
 from GenericMarkerCreator.operators.LiveOperators import LiveLandmarksCreator, SignaturesMatching;
 from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, ReorderLandmarks, \
 ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID, SnapLandmarksToVertex, \
-LoadBIMLandmarks;
+LoadBIMLandmarks, TransferLandmarks;
 from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks,SpectralFeatures, MeanCurvatures;
+
+from GenericMarkerCreator.operators.GeodesicBones import GeodesicBones;
 
 class SpectralGeneralPanel(bpy.types.Panel):
     bl_idname = "OBJECT_PT_spectralpanel"
@@ -196,6 +198,9 @@ class LandmarksPanel(bpy.types.Panel):
             col = row.column(align=True);
             col.operator(LoadBIMLandmarks.bl_idname);
             
+            row = box.row();
+            row.operator(TransferLandmarks.bl_idname);
+            
             if(len(context.active_object.generic_landmarks)):
                 box = layout.box();
                 box.label('Unpaired mesh operations');    
@@ -222,6 +227,10 @@ class LandmarksPanel(bpy.types.Panel):
                 row = box.row();
                 row.operator(LiveLandmarksCreator.bl_idname);
                 
+                row = box.row();
+                bones_operator = row.operator(GeodesicBones.bl_idname);                                
+                bones_operator.paired_operations = False;
+                
             if(context.active_object.is_landmarked_mesh):            
                 box = layout.box();
                 box.label('Mesh with a pair operations');              
@@ -245,6 +254,8 @@ class LandmarksPanel(bpy.types.Panel):
                 
                 row = box.row();
                 row.operator(SignaturesMatching.bl_idname);
+                
+                bones_operator.paired_operations = True;
                             
             if(context.active_object.is_visual_landmark):
                 box = layout.box();

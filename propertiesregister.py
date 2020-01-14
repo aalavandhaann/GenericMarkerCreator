@@ -183,6 +183,26 @@ class GenericLandmark(bpy.types.PropertyGroup):
     v_ratios = bpy.props.FloatVectorProperty(name="Barycentric ratios", description="Given the vertex indices (==3) apply the barycentric ratios for the location of the marker",default=(0.0,0.0,0.0));
     location = bpy.props.FloatVectorProperty(name="Location of Landmark",default=(0.0,0.0,0.0));
     landmark_name = bpy.props.StringProperty(name="Landmark Name", default="No Name");
+    
+    def copyToLandmark(self, landmark):
+        landmark.id = self.id;
+#         landmark.is_linked = self.is_linked;
+#         landmark.linked_id = self.linked_id;
+        landmark.faceindex = self.faceindex;
+        landmark.v_indices = self.v_indices;
+        landmark.v_ratios = self.v_ratios;
+        landmark.location = self.location;
+        landmark.landmark_name = self.landmark_name;
+    
+    def copyFromLandmark(self, landmark):
+        self.id = landmark.id;
+#         self.is_linked = landmark.is_linked;
+#         self.linked_id = landmark.linked_id;
+        self.faceindex = landmark.faceindex;
+        self.v_indices = landmark.v_indices;
+        self.v_ratios = landmark.v_ratios;
+        self.location = landmark.location;
+        self.landmark_name = landmark.landmark_name;
 
 class GenericPointSignature(bpy.types.PropertyGroup):
     index = bpy.props.IntProperty(name="Index", description="Index or indentifier that is unique for this landmark", default=-1);
@@ -293,8 +313,10 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
         
 #         np_file = np.loadtxt(mapping_file_path, dtype={'names':['index','u','v','w'], 'formats':[int, float, float, float]});
 #         np_file = np.loadtxt(mapping_file_path, dtype={'names':['index','u','v','w'], 'formats':[int, float, float, float]});
-        
-        np_file = np.loadtxt(mapping_file_path, dtype=None);
+        try:
+            np_file = np.loadtxt(mapping_file_path, dtype=None);
+        except ValueError:
+            np_file = np.loadtxt(mapping_file_path, dtype=None,delimiter=",",);
         isTriangleMapped = False;
         isVertexMapped = False;
         isVertexToVertexMapped = False;
