@@ -226,6 +226,8 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
     map_to_mesh = bpy.props.StringProperty(name='Map To', description="Map to Mesh surface name", default='--');
     mapped_points = bpy.props.CollectionProperty(type=VertexMapping);
     apply_on_duplicate = bpy.props.BoolProperty(name="Apply Duplicate", description="Apply the mapping to deform on duplicate", default=True);
+    filter_angle_value = bpy.props.FloatProperty(name='Filter Angle', description='Dot value to consider', default=0.95);
+    export_file_path = bpy.props.StringProperty(name="Export Mapping File", description="Location of the mapping file", subtype='FILE_PATH', default='mapping.map');
     
     def constructMapping(self):
         c = bpy.context;
@@ -243,7 +245,7 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                 co, n, i, d = btree.find_nearest(Vector((x,y,z)));
                 #Also check if the normals deviation is < 45 degrees
 #                 if(co and n and i and d and (n.normalized().dot(v.normal.normalized()) > 0.75)):
-                if(co and n and i and d and (n.normalized().dot(v.normal.normalized()) > 0.95)):
+                if(co and n and i and d and (n.normalized().dot(v.normal.normalized()) > self.filter_angle_value)):
 #                 if(co and n and i and d):
                     face = map_to.data.polygons[i];
                     u,v,w,ratio, isinside, vid1, vid2, vid3 = getBarycentricCoordinateFromPolygonFace(co, face, map_to, snapping=False, extra_info = True);
@@ -296,7 +298,21 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                 mpoint.bary_ratios = [r for r in mapped_point.bary_ratios]; 
         
         return mapping;
-
+    
+    def exportMapping(self):
+        export_mapping_file_path = bpy.path.abspath(self.export_file_path);
+        owner_mesh = self.id_data;
+        entries = [];
+        for vid, mapped_point in enumerate(self.mapped_points):
+            if(mapped_point.is_valid):
+                u,v,w = mapped_point.bary_ratios;
+                vid1,vid2,vid3 = mapped_point.bary_indices;
+                entries.append([vid1,vid2,vid3,u,v,w]);
+            else:
+                entries.append([-1,-1,-1,0.0,0.0,0.0]);
+        
+        entries = np.array(entries);   
+        np.savetxt(export_mapping_file_path, entries);
 
 class VertexToSurfaceMapping(bpy.types.PropertyGroup):
     mapping_name = bpy.props.StringProperty(name='Map Name', description="Maping Name", default='Mapping');
@@ -346,12 +362,18 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
             if(isTriangleMapped):
                 fid = ids[vid];
                 u, v, w = ratios[vid];
-                face = map_to.data.polygons[fid];
-                vids = [loops[lid].vertex_index for lid in face.loop_indices];
-                vid1, vid2, vid3 = vids;
+                if(fid == -1):
+                    mapped_point.is_valid = False;
+                else:
+                    face = map_to.data.polygons[fid];
+                    vids = [loops[lid].vertex_index for lid in face.loop_indices];
+                    vid1, vid2, vid3 = vids;                
             elif(isVertexMapped):
                 vid1, vid2, vid3 = [int(ii) for ii in ids[vid]];
                 u, v, w = ratios[vid];
+                if(vid1 == -1 and vid2 == -1 and vid3 == -1):
+                    mapped_point.is_valid = False;
+                    
             elif(isVertexToVertexMapped):
                 useVertexTargetId = int(ids[vid]);
                 if(useVertexTargetId != -1):
