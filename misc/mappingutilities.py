@@ -12,7 +12,7 @@ from GenericMarkerCreator.misc.mathandmatrices import getDuplicatedObject, getMe
 from GenericMarkerCreator.misc.mathandmatrices import getBMMesh, ensurelookuptable;
 
 
-def deformWithMapping(context, owner_mesh, map_to, apply_on_mesh, mapped_points):
+def deformWithMapping(context, owner_mesh, map_to, apply_on_mesh, mapped_points, use_lse=True, lse_iterations=1):
     print('DEFORM WITH MAPPING (UPLIFTING)');
     c = context;        
     constraint_positions = [];
@@ -33,7 +33,7 @@ def deformWithMapping(context, owner_mesh, map_to, apply_on_mesh, mapped_points)
     vpos = getMeshVPos(apply_on_mesh);
     print('TOTAL VERTICES : #%s, INVALID INDICES : #%s'%(vpos.shape[0], invalid_indices.shape[0], ));
                 
-    if(invalid_indices.shape[0] > 0 and invalid_indices.shape[0] != vpos.shape[0]):       
+    if(invalid_indices.shape[0] > 0 and invalid_indices.shape[0] != vpos.shape[0] and use_lse):       
         print('SOLVE WITH LSE FOR INVALID MAPPING INDICES');   
         v_group_name='Mapping-LSE-deformer';
 
@@ -48,7 +48,7 @@ def deformWithMapping(context, owner_mesh, map_to, apply_on_mesh, mapped_points)
         
         lap_mod = apply_on_mesh.modifiers.new(name=vertex_group.name, type='LAPLACIANDEFORM');
         lap_mod.vertex_group = vertex_group.name;
-        lap_mod.iterations = 3;#its was 1 before
+        lap_mod.iterations = lse_iterations;#its was 1 before
         
         bpy.ops.object.select_all(action="DESELECT");
         apply_on_mesh.select = True;
@@ -71,5 +71,5 @@ def deformWithMapping(context, owner_mesh, map_to, apply_on_mesh, mapped_points)
     else:
         setMeshVPOS(apply_on_mesh, constraint_positions);
             
-    return getMeshVPos(apply_on_mesh);
+    return getMeshVPos(apply_on_mesh), invalid_indices.shape[0];
  

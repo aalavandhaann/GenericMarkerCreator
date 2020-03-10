@@ -227,6 +227,8 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
     mapped_points = bpy.props.CollectionProperty(type=VertexMapping);
     apply_on_duplicate = bpy.props.BoolProperty(name="Apply Duplicate", description="Apply the mapping to deform on duplicate", default=True);
     filter_angle_value = bpy.props.FloatProperty(name='Filter Angle', description='Dot value to consider', default=0.95);
+    use_lse_iterations = bpy.props.BoolProperty(name='Use LSE Iterations', description='Should Use LSE Iterations', default=True);
+    num_lse_iterations = bpy.props.IntProperty(name='LSE Iterations', description='Total LSE Iterations', default=1);
     export_file_path = bpy.props.StringProperty(name="Export Mapping File", description="Location of the mapping file", subtype='FILE_PATH', default='mapping.map');
     
     def constructMapping(self):
@@ -271,8 +273,8 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                 except KeyError:
                     apply_on_mesh = getDuplicatedObject(c, owner_mesh, meshname="%s-%s-%s"%(owner_mesh.name, self.mapping_name, self.name));
             
-            mapped_positions = deformWithMapping(c, owner_mesh, map_to, apply_on_mesh, self.mapped_points);                                
-            return apply_on_mesh, mapped_positions;
+            mapped_positions, count_invalid = deformWithMapping(c, owner_mesh, map_to, apply_on_mesh, self.mapped_points, self.use_lse_iterations, self.num_lse_iterations);                                
+            return apply_on_mesh, mapped_positions, count_invalid;
         
         except KeyError:
             print('MAP TO MESH NEEDS TO BE SET BEFORE CONSTRUCTING A MAPPING');
@@ -322,6 +324,9 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
     mapping_is_valid = bpy.props.BoolProperty(name="Mapping Valid", description="Is the Mapping Valid?", default=False);
     file_path = bpy.props.StringProperty(name="Mapping File", description="Location of the mapping file", subtype='FILE_PATH', default='mapping.map');
     export_file_path = bpy.props.StringProperty(name="Export Mapping File", description="Location of the mapping file", subtype='FILE_PATH', default='mapping.map');
+    use_lse_iterations = bpy.props.BoolProperty(name='Use LSE Iterations', description='Should Use LSE Iterations', default=True);
+    num_lse_iterations = bpy.props.IntProperty(name='LSE Iterations', description='Total LSE Iterations', default=1);
+    
     
     def constructFromFile(self, mapping_file_path, owner_mesh, map_to):
         n_count = len(owner_mesh.data.vertices);
@@ -465,8 +470,8 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
                 except KeyError:
                     apply_on_mesh = getDuplicatedObject(c, owner_mesh, meshname="%s-%s-%s"%(owner_mesh.name, self.mapping_name, map_to.name));
             
-            mapped_positions = deformWithMapping(c, owner_mesh, map_to, apply_on_mesh, self.mapped_points);            
-            return apply_on_mesh, mapped_positions;
+            mapped_positions, count_invalid = deformWithMapping(c, owner_mesh, map_to, apply_on_mesh, self.mapped_points, self.use_lse_iterations, self.num_lse_iterations);        
+            return apply_on_mesh, mapped_positions, count_invalid;
         
         except KeyError:
             print('MAP TO MESH NEEDS TO BE SET BEFORE CONSTRUCTING A MAPPING');
