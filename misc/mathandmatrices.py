@@ -3,7 +3,7 @@ import numpy as np;
 import scipy as sp;
 import scipy.sparse as spsp;
 from scipy.sparse.linalg import eigsh;
-
+from scipy.sparse.linalg import lsqr;
 from mathutils import Vector;
 
 # the representation of a point will be a tuple (x,y)
@@ -70,6 +70,23 @@ def getBBox(m):
     dimensionvector = max_coords - min_coords;
     diameter = dimensionvector.length;
     return min_coords, max_coords, diameter;
+
+def solveLaplacianPositionsSoftConstraints(L, delta):
+    n_count = L.shape[1];
+    final_v_pos = np.zeros((n_count, 3));
+    for i in range(3):
+        try:
+            final_v_pos[:, i] = lsqr(L, delta[:, i])[0];
+        except ZeroDivisionError:
+            zero_indices =  np.where(delta[:, i] == 0); 
+            L_matrix = L[zero_indices];
+            r, c = L_matrix.nonzero();           
+            print(zero_indices);
+            print(L[r, c]);
+            print(delta[zero_indices].tolist());
+            print('ITERATION DIMENSION : ', i);
+            raise ZeroDivisionError;
+    return final_v_pos;
 
 def meanCurvatureLaplaceWeights(context, mesh, symmetric = False, normalized=False):
     start = time.time();
