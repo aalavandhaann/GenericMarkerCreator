@@ -148,11 +148,11 @@ class CreateLandmarks(bpy.types.Operator):
             if(marker.id > temp):
                 temp = marker.id;
             
-        for area in context.screen.areas: # iterate through areas in current screen
-            if area.type == 'VIEW_3D':
-                for space in area.spaces: # iterate through spaces in current VIEW_3D area
-                    if space.type == 'VIEW_3D': # check if space is a 3D view
-                        space.viewport_shade = 'SOLID' # set the viewport shading to rendered
+#         for area in context.screen.areas: # iterate through areas in current screen
+#             if area.type == 'VIEW_3D':
+#                 for space in area.spaces: # iterate through spaces in current VIEW_3D area
+#                     if space.type == 'VIEW_3D': # check if space is a 3D view
+#                         space.viewport_shade = 'SOLID' # set the viewport shading to rendered
         
         context.scene.objects.active = mesh;
         

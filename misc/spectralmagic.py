@@ -49,7 +49,14 @@ def updateMatrixCache(context, mesh):
 #Returns: (eigvalues, eigvectors): a tuple of the eigenvalues and eigenvectors
 def getLaplacianSpectrum(context, mesh, K):
     L = getLaplacianMatrixCotangent(context, mesh, []);
-    (eigvalues, eigvectors) = eigsh(L, K, which='LM', sigma = 0);
+#     (eigvalues, eigvectors) = eigsh(L, K, which='LM', sigma = 0, v0 = np.ones(L.shape[0]));#v0 makes the eigenvectors and eigenvalues consistent for multiple executions, otherwise it will be random everytime     
+    (eigvalues, eigvectors) = eigs(L, K, which='LM', sigma = 0, v0 = np.ones(L.shape[0]));#v0 makes the eigenvectors and eigenvalues consistent for multiple executions, otherwise it will be random everytime
+    
+    #Sort them in ascending order
+    _ascending_indices = np.argsort(eigvalues);
+    eigvalues = eigvalues[_ascending_indices];
+    eigvectors = eigvectors[:, _ascending_indices];
+    
     return (eigvalues, eigvectors);
 
 #Purpose: Given a mesh, to use the first K eigenvectors of its Laplacian

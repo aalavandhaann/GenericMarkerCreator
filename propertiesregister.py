@@ -217,6 +217,7 @@ class GenericPointSignature(bpy.types.PropertyGroup):
     p2 = bpy.props.FloatVectorProperty(name = 'Principal Direction 2', description="The p2 signature for this point", default=(0.0, 0.0, 0.0));
 
 class VertexMapping(bpy.types.PropertyGroup):
+    face_index = bpy.props.IntProperty(name="Face Index", description="Triangle Index of the mapped location",default=-1);
     bary_indices = bpy.props.IntVectorProperty(name="Vertex indices", description="Vertex indices on which the barycentric ratios have to be applied",default=(-1, -1, -1));
     bary_ratios = bpy.props.FloatVectorProperty(name="Barycentric ratios", description="Given the vertex indices (==3) apply the barycentric ratios for the location of mapped point",default=(0.0,0.0,0.0));
     is_valid = bpy.props.BoolProperty(name="Is Valid?", description="Is this a valid mapping point", default=True);
@@ -247,12 +248,15 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
                 co, n, i, d = btree.find_nearest(Vector((x,y,z)));
                 #Also check if the normals deviation is < 45 degrees
 #                 if(co and n and i and d and (n.normalized().dot(v.normal.normalized()) > 0.75)):
-                if(co and n and i and d and (n.normalized().dot(v.normal.normalized()) > self.filter_angle_value)):
-#                 if(co and n and i and d):
+                if(co and n and i and d):
                     face = map_to.data.polygons[i];
-                    u,v,w,ratio, isinside, vid1, vid2, vid3 = getBarycentricCoordinateFromPolygonFace(co, face, map_to, snapping=False, extra_info = True);
-                    mapped_point.bary_ratios = [u, v, w];
-                    mapped_point.bary_indices = [vid1, vid2, vid3];
+                    if((face.normal.normalized().dot(v.normal.normalized()) > self.filter_angle_value)):
+                        u,v,w,ratio, isinside, vid1, vid2, vid3 = getBarycentricCoordinateFromPolygonFace(co, face, map_to, snapping=False, extra_info = True);
+                        mapped_point.face_index = i;
+                        mapped_point.bary_ratios = [u, v, w];
+                        mapped_point.bary_indices = [vid1, vid2, vid3];
+                    else:
+                        mapped_point.is_valid = False;
                 else:
                     mapped_point.is_valid = False
         except KeyError:
@@ -296,6 +300,7 @@ class VertexToSurfaceMappingBVH(bpy.types.PropertyGroup):
             mpoint = mapping.mapped_points.add();
             mpoint.is_valid = mapped_point.is_valid;
             if(mpoint.is_valid):
+                mpoint.face_index = mapped_point.face_index;
                 mpoint.bary_indices = [id for id in mapped_point.bary_indices];
                 mpoint.bary_ratios = [r for r in mapped_point.bary_ratios]; 
         
@@ -414,6 +419,7 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
             if(co and n and i and d):
                 face = map_to.data.polygons[i];
                 u,v,w,ratio, isinside, vid1, vid2, vid3 = getBarycentricCoordinateFromPolygonFace(co, face, map_to, snapping=False, extra_info = True);
+                mapped_point.face_index = i;
                 mapped_point.bary_ratios = [u, v, w];
                 mapped_point.bary_indices = [vid1, vid2, vid3];
             else:
@@ -493,6 +499,7 @@ class VertexToSurfaceMapping(bpy.types.PropertyGroup):
             mpoint = mapping.mapped_points.add();
             mpoint.is_valid = mapped_point.is_valid;
             if(mpoint.is_valid):
+                mpoint.face_index = mapped_point.face_index;
                 mpoint.bary_indices = [id for id in mapped_point.bary_indices];
                 mpoint.bary_ratios = [r for r in mapped_point.bary_ratios]; 
         

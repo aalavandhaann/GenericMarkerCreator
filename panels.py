@@ -8,6 +8,8 @@ ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus
 LoadBIMLandmarks, TransferLandmarks;
 from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks,SpectralFeatures, MeanCurvatures;
 
+from GenericMarkerCreator.operators.SpectralMapping import SpectralSpaceDeformer;
+
 from GenericMarkerCreator.operators.GeodesicBones import GeodesicBones;
 
 class SpectralGeneralPanel(bpy.types.Panel):
@@ -188,6 +190,9 @@ class LandmarksPanel(bpy.types.Panel):
             row = box.row();
             row.prop(context.active_object, 'snap_landmarks');
             
+            row = box.row();
+            row.prop(context.active_object, 'unlinked_landmark_color');
+            
             box = layout.box();
             box.label('Load Landmarks from a file');
             
@@ -231,14 +236,14 @@ class LandmarksPanel(bpy.types.Panel):
                 bones_operator = row.operator(GeodesicBones.bl_idname);                                
                 bones_operator.paired_operations = False;
                 
+                
+                
             if(context.active_object.is_landmarked_mesh):            
                 box = layout.box();
                 box.label('Mesh with a pair operations');              
                 
                 row = box.row();
-                row.prop(context.active_object, 'linked_landmark_color');
-                row = box.row();
-                row.prop(context.active_object, 'unlinked_landmark_color');
+                row.prop(context.active_object, 'linked_landmark_color');                
                 
                 row = box.row();
                 row.operator(LandmarkStatus.bl_idname);
@@ -253,9 +258,7 @@ class LandmarksPanel(bpy.types.Panel):
                 box.label('Experimnetal: Signatures Matching');
                 
                 row = box.row();
-                row.operator(SignaturesMatching.bl_idname);
-                
-                bones_operator.paired_operations = True;
+                row.operator(SignaturesMatching.bl_idname);                
                             
             if(context.active_object.is_visual_landmark):
                 box = layout.box();
@@ -545,7 +548,11 @@ class MappingFromFilePanel(bpy.types.Panel):
             col.operator(PanelHelpAddMappingFromFile.bl_idname, text='', icon='ZOOMIN');
             col.operator(PanelHelpRemoveMappingFromFile.bl_idname, text='', icon='ZOOMOUT');
             col.operator(PanelHelpClearMappingFromFile.bl_idname, text='', icon='PANEL_CLOSE');
-
+            
+            box = layout.box();
+            box.label('Create Spectral Surface Mapping');
+            row = box.row();
+            row.operator(SpectralSpaceDeformer.bl_idname, text='Spectral Space Mapping');
 
          
 def register():

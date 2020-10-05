@@ -76,7 +76,10 @@ def detectMN(mesh):
     
     if(mesh.is_landmarked_mesh):
         M = mesh;
-        N = bpy.data.objects[mesh.mapped_mesh];
+        try:
+            N = bpy.data.objects[mesh.mapped_mesh];
+        except KeyError:
+            print('No paired mesh found, continue with single mesh');
         
     elif(mesh.is_visual_landmark):
         belongsto = bpy.data.objects[mesh.name.split("_marker_")[0]];

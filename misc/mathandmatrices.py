@@ -73,8 +73,9 @@ def getBBox(m):
 
 def solveLaplacianPositionsSoftConstraints(L, delta):
     n_count = L.shape[1];
-    final_v_pos = np.zeros((n_count, 3));
-    for i in range(3):
+    column_count = delta.shape[1];
+    final_v_pos = np.zeros((n_count, column_count));
+    for i in range(column_count):
         try:
             final_v_pos[:, i] = lsqr(L, delta[:, i])[0];
         except ZeroDivisionError:
@@ -908,7 +909,8 @@ def getBMMesh(context, obj, useeditmode = True):
             
             if context.mode != 'EDIT_MESH':
                 bpy.ops.object.mode_set(mode = 'EDIT', toggle = False);
-
+        
+        ensurelookuptable(bm);
         return bm;
 
     else:
@@ -920,6 +922,7 @@ def getBMMesh(context, obj, useeditmode = True):
         obj.select = True;
         bpy.ops.object.mode_set(mode = 'EDIT', toggle = False);
         bm = bmesh.from_edit_mesh(obj.data);
+        ensurelookuptable(bm);
         return bm;
 
 def ensurelookuptable(bm):

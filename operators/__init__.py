@@ -23,7 +23,7 @@ from GenericMarkerCreator.operators.LandmarksCreator import CreateLandmarks, Reo
 ChangeLandmarks, UnLinkLandmarks, LinkLandmarks, RemoveLandmarks, LandmarkStatus, LandmarksPairFinder, TransferLandmarkNames, AutoLinkLandmarksByID, SnapLandmarksToVertex, \
 LoadBIMLandmarks, TransferLandmarks
 from GenericMarkerCreator.operators.SpectralOperations import SpectralHKS, SpectralWKS, SpectralGISIF, SpectralShape, AddSpectralSignatures, AddSpectralSignatureLandmarks, SpectralFeatures, MeanCurvatures;
-
+from GenericMarkerCreator.operators.SpectralMapping import SpectralSpaceDeformer;
 from GenericMarkerCreator.operators.GeodesicBones import GeodesicBones;
 
 def register():
@@ -53,6 +53,8 @@ def register():
     bpy.utils.register_class(AddSpectralSignatures);
     bpy.utils.register_class(AddSpectralSignatureLandmarks);
     bpy.utils.register_class(SpectralFeatures);    
+    
+    bpy.utils.register_class(SpectralSpaceDeformer);   
     
     bpy.utils.register_class(GeodesicBones);
     print('OPERATORS BEING REGISTERED -> END');
@@ -84,6 +86,8 @@ def unregister():
     bpy.utils.unregister_class(AddSpectralSignatures);
     bpy.utils.unregister_class(AddSpectralSignatureLandmarks);
     bpy.utils.unregister_class(SpectralFeatures);    
+    
+    bpy.utils.unregister_class(SpectralSpaceDeformer);
     
     bpy.utils.unregister_class(GeodesicBones);
     print('OPERATORS BEING UNREGISTERED -> END');
